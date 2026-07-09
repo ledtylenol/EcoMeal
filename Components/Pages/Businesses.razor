@@ -1,0 +1,264 @@
+﻿@page "/businesses"
+@inject HttpClient http
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Businesses</PageTitle>
+
+<h1>Businesses</h1>
+
+@if (businesses == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+        @foreach (var business in businesses)
+        {
+            <div class="col">
+                <Card Class="h-100" TextAlignment="Alignment.Center">
+                    <CardBody Class="d-flex flex-column h-100">
+                        <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+    					@if (business.ImageUrl != null && business.ImageUrl.Length > 0)
+						{
+						<Image Src="@business.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
+						}
+						else
+						{
+						<div Style="height: 100%; width: 100%; background-color: gray;" />
+						}
+						</div>
+                        <CardTitle>@business.Name</CardTitle>
+						@if(@business.Description is null || @business.Description.Length == 0) {
+							<CardText>No description added...</CardText>
+						}
+						else{
+                        	<CardText>@business.Description</CardText>
+						}
+						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
+									@onclick="@(() => OpenEditModal(business))">Edit</Button>
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
+									@onclick="@(() => OpenDeleteModal(business))">Delete</Button>
+						</div>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+<Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenAddModal">Add Business</Button>
+
+<Modal @ref="deleteModal" Title="Delete" IsVerticallyCentered = "true">
+	<BodyTemplate>
+		<h1>Are you sure?</h1>
+        <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseDeleteModal">Cancel</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => DeleteBusiness(editUid))">Delete</Button>
+	</BodyTemplate>
+
+</Modal>
+<Modal @ref="modal" Title="@(isEdit ? "Edit Business" : "Add Business")" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Name <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="business.Name" Placeholder="Enter name" />
+                    <ValidationMessage For="@(() => business.Name)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Address <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="business.Address" Placeholder="Enter address" />
+                    <ValidationMessage For="@(() => business.Address)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Description</label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="business.Description" Placeholder="Enter description" />
+                </div>
+            </div>
+			<div class="form-group row mb-3">
+				<label class="col-md-3 col-form-label">Business Type <span class="text-danger">*</span></label>
+				<div class="col-md-9">
+					<select class="form-select" @bind="business.BusinessTypeId">
+						<option value="">-- Select a type --</option>
+						@if (businessTypes != null)
+						{
+							@foreach (var type in businessTypes)
+							{
+								<option value="@type.Uid">@type.Name</option>
+							}
+						}
+						else 
+						{
+							<span>No business types available. what?</span>
+						}
+					</select>
+					<ValidationMessage For="@(() => business.BusinessTypeId)" />
+				</div>
+			</div>
+            <div class="form-group row mb-3">
+				<label class="col-md-3 col-form-label">Image</label>
+				<div class="col-md-9">
+					<InputFile OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp" />
+					@if (!string.IsNullOrEmpty(business.ImageUrl))
+					{
+						<div class="mt-2">
+							<Image Src="@business.ImageUrl" Style="height: 80px;" />
+						</div>
+					}
+				</div>
+			</div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseModal">Cancel</Button>
+                <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Save</Button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+	private List<BusinessTypeView>? businessTypes;
+    private List<Business>? businesses;
+    private Modal modal = default!;
+    private Modal deleteModal = default!;
+    private BusinessView business = new();
+    private EditContext? editContext;
+    private Guid? editUid;
+    private bool isEdit => editUid is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBusinesses();
+		businessTypes = await http.GetFromJsonAsync<List<BusinessTypeView>>("api/business_type/");
+    }
+
+	private async Task DeleteBusiness(Guid? editUid) {
+		await http.DeleteAsync($"api/business/{editUid}");
+
+        await deleteModal.HideAsync();
+        await LoadBusinesses();
+	}
+    private async Task LoadBusinesses()
+    {
+        businesses = await http.GetFromJsonAsync<List<Business>>("api/business/");
+    }
+
+    private async Task OpenAddModal()
+    {
+        editUid = null;
+        business = new();
+        editContext = new(business);
+        await modal.ShowAsync();
+    }
+
+    private async Task OpenDeleteModal(Business b)
+    {
+        editUid = b.Uid;
+        await deleteModal.ShowAsync();
+    }
+
+    private async Task OpenEditModal(Business b)
+    {
+        editUid = b.Uid;
+        business = new BusinessView
+        {
+            Name = b.Name,
+            Address = b.Address,
+            Description = b.Description,
+            ImageUrl = b.ImageUrl
+        };
+        editContext = new(business);
+        await modal.ShowAsync();
+    }
+
+    private async Task CloseModal()
+    {
+        await modal.HideAsync();
+    }
+
+	private async Task CloseDeleteModal() {
+		await deleteModal.HideAsync();
+	}
+
+    private async Task HandleOnValidSubmit()
+    {
+		Console.WriteLine(business.ImageUrl);
+        var dto = new BusinessDTO
+        {
+            Name = business.Name,
+            Address = business.Address,
+            Description = business.Description,
+            ImageUrl = business.ImageUrl,
+            BusinessTypeId = new Guid("76dc3a76-310b-4751-ae9f-753510cb5919")
+        };
+
+        if (editUid is not null)
+        {
+            dto.Uid = editUid.Value;
+            await http.PutAsJsonAsync("api/business/", dto);
+        }
+        else
+        {
+            await http.PostAsJsonAsync("api/business/", dto);
+        }
+
+        await modal.HideAsync();
+        await LoadBusinesses();
+    }
+	private async Task HandleFileSelected(InputFileChangeEventArgs e)
+	{
+		var file = e.File;
+		if (file == null) return;
+
+		var content = new MultipartFormDataContent();
+		var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
+		content.Add(new StreamContent(stream), "file", file.Name);
+
+		var response = await http.PostAsync("api/business/upload_image", content);
+		if (response.IsSuccessStatusCode)
+		{
+			Console.WriteLine("Success");
+			var result = await response.Content.ReadFromJsonAsync<UploadResult>();
+			business.ImageUrl = result!.Url;
+		}
+	}
+
+	private class UploadResult
+	{
+		public string Url { get; set; } = string.Empty;
+	}
+
+    public class BusinessView
+    {
+        [Required(ErrorMessage = "Name required.")]
+        [StringLength(100, ErrorMessage = "Name must not exceed 100 characters")]
+        public string? Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Address required.")]
+        [StringLength(100, ErrorMessage = "Address must not exceed 100 characters")]
+        public string? Address { get; set; } = string.Empty;
+
+        public string? ImageUrl { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+
+		[Required(ErrorMessage = "Business type required.")]
+    	public Guid? BusinessTypeId { get; set; }
+    }
+
+	public class BusinessTypeView
+	{
+		public Guid Uid { get; set; }
+		public string Name { get; set; } = string.Empty;
+	}
+}

@@ -1,0 +1,153 @@
+@page "/business_types"
+@inject HttpClient http
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Business Types</PageTitle>
+
+<h1>Business Types</h1>
+
+@if (businessTypes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+        @foreach (var business in businessTypes)
+        {
+            <div class="col">
+                <Card Class="h-100" TextAlignment="Alignment.Center">
+                    <CardBody Class="d-flex flex-column h-100">
+                        <CardTitle>@business.Name</CardTitle>
+						<div class="mt-auto row row-cols-2 vertical-align-end">
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
+									@onclick="@(() => OpenEditModal(business))">Edit</Button>
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Secondary"
+									@onclick="@(() => OpenDeleteModal(business))">Delete</Button>
+						</div>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+<Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenAddModal">Add Business Type</Button>
+
+<Modal @ref="deleteModal" Title="Delete" IsVerticallyCentered = "true">
+	<BodyTemplate>
+		<h1>Are you sure?</h1>
+        <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseDeleteModal">Cancel</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => DeleteBusiness(editUid))">Delete</Button>
+	</BodyTemplate>
+
+</Modal>
+<Modal @ref="modal" Title="@(isEdit ? "Edit Business Type" : "Add Business Type")" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Name <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="business.Name" Placeholder="Enter name" />
+                    <ValidationMessage For="@(() => business.Name)" />
+                </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+                <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseModal">Cancel</Button>
+                <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Save</Button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<BusinessType>? businessTypes;
+    private Modal modal = default!;
+    private Modal deleteModal = default!;
+    private BusinessTypeView business = new();
+    private EditContext? editContext;
+    private Guid? editUid;
+    private bool isEdit => editUid is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBusinessTypes();
+    }
+
+	private async Task DeleteBusiness(Guid? editUid) {
+		await http.DeleteAsync($"api/business_type/{editUid}");
+
+        await deleteModal.HideAsync();
+        await LoadBusinessTypes();
+	}
+    private async Task LoadBusinessTypes()
+    {
+        businessTypes = await http.GetFromJsonAsync<List<BusinessType>>("api/business_type/");
+    }
+
+    private async Task OpenAddModal()
+    {
+        editUid = null;
+        business = new();
+        editContext = new(business);
+        await modal.ShowAsync();
+    }
+
+    private async Task OpenDeleteModal(BusinessType b)
+    {
+        editUid = b.Uid;
+        await deleteModal.ShowAsync();
+    }
+
+    private async Task OpenEditModal(BusinessType b)
+    {
+        editUid = b.Uid;
+        business = new BusinessTypeView
+        {
+            Name = b.Name,
+        };
+        editContext = new(business);
+        await modal.ShowAsync();
+    }
+
+    private async Task CloseModal()
+    {
+        await modal.HideAsync();
+    }
+
+	private async Task CloseDeleteModal() {
+		await deleteModal.HideAsync();
+	}
+
+    private async Task HandleOnValidSubmit()
+    {
+        var dto = new BusinessType
+        {
+            Name = business.Name,
+        };
+
+        if (editUid is not null)
+        {
+            dto.Uid = editUid.Value;
+            await http.PutAsJsonAsync("api/business_type/", dto);
+        }
+        else
+        {
+            await http.PostAsJsonAsync("api/business_type/", dto);
+        }
+
+        await modal.HideAsync();
+        await LoadBusinessTypes();
+    }
+
+    public class BusinessTypeView
+    {
+        [Required(ErrorMessage = "Name required.")]
+        [StringLength(100, ErrorMessage = "Name must not exceed 100 characters")]
+        public string? Name { get; set; } = string.Empty;
+
+    }
+}

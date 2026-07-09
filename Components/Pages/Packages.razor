@@ -1,0 +1,351 @@
+@page "/packages"
+@inject HttpClient http
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Packages</PageTitle>
+
+<h1>Packages</h1>
+
+<Button Color="ButtonColor.Primary" Class="mb-3" @onclick="OpenAddModal">Add Package</Button>
+
+@if (packages == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+        @foreach (var package in packages)
+        {
+            <div class="col">
+                <Card Class="h-100">
+                    <CardBody Class="d-flex flex-column h-100">
+                        <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+                            @if (!string.IsNullOrEmpty(package.ImageUrl))
+                            {
+                                <Image Src="@package.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <Placeholder Style="height: 100%; width: 100%; display: block;" />
+                            }
+                        </div>
+                        <CardTitle>@package.Name</CardTitle>
+                        <CardText>@package.Description</CardText>
+                        <CardText><strong>$@package.Price.ToString("0.00")</strong> &middot; Qty: @package.Quantity</CardText>
+                        <CardText class="text-muted" style="font-size: 0.85rem;">
+                            Pickup: @package.PickupStart.ToString("MMM d, h:mm tt") - @package.PickupEnd.ToString("MMM d, h:mm tt")
+                        </CardText>
+						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
+									@onclick="@(() => OpenEditModal(package))">Edit</Button>
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
+									@onclick="@(() => OpenDeleteModal(package))">Delete</Button>
+						</div>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+<Modal @ref="deleteModal" Title="Delete" IsVerticallyCentered = "true">
+	<BodyTemplate>
+		<h1>Are you sure?</h1>
+        <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseDeleteModal">Cancel</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Danger" @onclick="@(() => DeletePackage(editUid))">Delete</Button>
+	</BodyTemplate>
+
+</Modal>
+<Modal @ref="modal" Title="@(isEdit ? "Edit Package" : "Add Package")" IsVerticallyCentered="true" Size="ModalSize.Large">
+    <BodyTemplate>
+        <EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Business <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <select class="form-select" @bind="package.BusinessId">
+                        <option value="">-- Select a business --</option>
+                        @if (businesses != null)
+                        {
+                            @foreach (var b in businesses)
+                            {
+                                <option value="@b.Uid">@b.Name</option>
+                            }
+                        }
+                    </select>
+                    <ValidationMessage For="@(() => package.BusinessId)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Package Type <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <select class="form-select" @bind="package.PackageTypeId">
+                        <option value="">-- Select a type --</option>
+                        @if (packageTypes != null)
+                        {
+                            @foreach (var t in packageTypes)
+                            {
+                                <option value="@t.Uid">@t.Name</option>
+                            }
+                        }
+                    </select>
+                    <ValidationMessage For="@(() => package.PackageTypeId)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Name <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="package.Name" Placeholder="Enter name" />
+                    <ValidationMessage For="@(() => package.Name)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Description</label>
+                <div class="col-md-9">
+                    <TextInput @bind-Value="package.Description" Placeholder="Enter description" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Price <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <input type="number" step="0.01" min="0.1" class="form-control" @bind="package.Price" />
+                    <ValidationMessage For="@(() => package.Price)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Quantity <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <input type="number" min="1" class="form-control" @bind="package.Quantity" />
+                    <ValidationMessage For="@(() => package.Quantity)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Pickup Start <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <input type="datetime-local" class="form-control" @bind="package.PickupStart" />
+                    <ValidationMessage For="@(() => package.PickupStart)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Pickup End <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <input type="datetime-local" class="form-control" @bind="package.PickupEnd" />
+                    <ValidationMessage For="@(() => package.PickupEnd)" />
+                </div>
+            </div>
+
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Image</label>
+                <div class="col-md-9">
+                    <InputFile OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.gif,.webp" />
+                    @if (!string.IsNullOrEmpty(package.ImageUrl))
+                    {
+                        <div class="mt-2">
+                            <img src="@package.ImageUrl" style="height: 80px;" />
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseModal">Cancel</Button>
+                <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Save</Button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<PackageListItem>? packages;
+    private List<BusinessView>? businesses;
+    private List<PackageTypeView>? packageTypes;
+
+    private Modal modal = default!;
+
+    private Modal deleteModal = default!;
+    private PackageView package = new();
+    private EditContext? editContext;
+    private Guid? editUid;
+    private bool isEdit => editUid is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPackages();
+        businesses = await http.GetFromJsonAsync<List<BusinessView>>("api/business/");
+        packageTypes = await http.GetFromJsonAsync<List<PackageTypeView>>("api/package_type/");
+    }
+
+    private async Task LoadPackages()
+    {
+        packages = await http.GetFromJsonAsync<List<PackageListItem>>("api/package/");
+    }
+
+    private async Task OpenAddModal()
+    {
+        editUid = null;
+        package = new()
+        {
+            PickupStart = DateTime.Now,
+            PickupEnd = DateTime.Now.AddHours(1)
+        };
+        editContext = new(package);
+        await modal.ShowAsync();
+    }
+
+	private async Task DeletePackage(Guid? editUid) {
+		await http.DeleteAsync($"api/package/{editUid}");
+
+        await deleteModal.HideAsync();
+        await LoadPackages();
+	}
+
+    private async Task OpenDeleteModal(PackageListItem b)
+    {
+        editUid = b.Uid;
+        await deleteModal.ShowAsync();
+    }
+    private async Task OpenEditModal(PackageListItem p)
+    {
+        editUid = p.Uid;
+        package = new PackageView
+        {
+            BusinessId = p.BusinessId,
+            PackageTypeId = p.PackageTypeId,
+            Name = p.Name,
+            Description = p.Description,
+            Price = p.Price,
+            Quantity = p.Quantity,
+            PickupStart = p.PickupStart,
+            PickupEnd = p.PickupEnd,
+            ImageUrl = p.ImageUrl
+        };
+        editContext = new(package);
+        await modal.ShowAsync();
+    }
+
+    private async Task CloseModal()
+    {
+        await modal.HideAsync();
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        var content = new MultipartFormDataContent();
+        var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        content.Add(new StreamContent(stream), "file", file.Name);
+
+        var response = await http.PostAsync("api/package/upload_image", content);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<UploadResult>();
+            package.ImageUrl = result!.Url;
+        }
+    }
+
+	private async Task CloseDeleteModal() {
+		await deleteModal.HideAsync();
+	}
+
+
+    private async Task HandleOnValidSubmit()
+    {
+        var dto = new PackageDTO
+        {
+            BusinessId = package.BusinessId!.Value,
+            PackageTypeId = package.PackageTypeId!.Value,
+            Name = package.Name,
+            Description = package.Description,
+            Price = package.Price,
+            Quantity = package.Quantity,
+            PickupStart = package.PickupStart,
+            PickupEnd = package.PickupEnd,
+            ImageUrl = package.ImageUrl
+        };
+
+        if (editUid is not null)
+        {
+            dto.Uid = editUid.Value;
+            await http.PutAsJsonAsync("api/package/", dto);
+        }
+        else
+        {
+            await http.PostAsJsonAsync("api/package/", dto);
+        }
+
+        await modal.HideAsync();
+        await LoadPackages();
+    }
+
+    public class PackageView
+    {
+        [Required(ErrorMessage = "Business required.")]
+        public Guid? BusinessId { get; set; }
+
+        [Required(ErrorMessage = "Package type required.")]
+        public Guid? PackageTypeId { get; set; }
+
+        [Required(ErrorMessage = "Name required.")]
+        [StringLength(100, ErrorMessage = "Name must not exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        public string? Description { get; set; } = string.Empty;
+
+        [Range(0, float.MaxValue, ErrorMessage = "Price must be positive")]
+        public float Price { get; set; }
+
+        [Range(1, double.MaxValue, ErrorMessage = "Quantity must be above 0")]
+        public uint Quantity { get; set; }
+
+        [Required(ErrorMessage = "Pickup start required.")]
+        public DateTime PickupStart { get; set; }
+
+        [Required(ErrorMessage = "Pickup end required.")]
+        public DateTime PickupEnd { get; set; }
+
+        public string? ImageUrl { get; set; } = string.Empty;
+    }
+
+    public class PackageListItem
+    {
+        public Guid Uid { get; set; }
+        public Guid BusinessId { get; set; }
+        public Guid PackageTypeId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public float Price { get; set; }
+        public uint Quantity { get; set; }
+        public DateTime PickupStart { get; set; }
+        public DateTime PickupEnd { get; set; }
+        public string? ImageUrl { get; set; }
+    }
+
+    public class BusinessView
+    {
+        public Guid Uid { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class PackageTypeView
+    {
+        public Guid Uid { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class UploadResult
+    {
+        public string Url { get; set; } = string.Empty;
+    }
+}
