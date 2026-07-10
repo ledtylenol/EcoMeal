@@ -11,3 +11,14 @@ public class Order
 
 	public ICollection<OrderPackage> OrderPackages { get; set; } = [];
 }
+
+
+public class OrderDTO
+{
+	public Guid Uid { get; set; }
+	public Guid UserId { get; set; }
+	public Guid BusinessId { get; set; }
+	public Guid StatusId { get; set; }
+	public uint OrderNumber { get; set; }
+
+}

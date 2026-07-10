@@ -6,3 +6,10 @@ public class OrderPackage
 	public Package? Package { get; set; } = null;
 	public uint Quantity { get; set; }
 }
+
+public class OrderPackageDTO
+{
+	public Guid OrderId { get; set; }
+	public Guid PackageId { get; set; }
+	public uint Quantity { get; set; }
+}

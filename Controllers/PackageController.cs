@@ -15,6 +15,13 @@ public class PackageController(EcoMealDbContext context, IWebHostEnvironment _en
 		return await repository.GetAllAsync();
 	}
 
+
+	[HttpGet("business/{id}")]
+	public async Task<ActionResult<IEnumerable<Package>>> GetPackagesFromBusiness(Guid id)
+	{
+		return await repository.GetFromBusinessId(id);
+	}
+
 	[HttpGet("{id}")]
 	public async Task<ActionResult<Package>> GetPackage(Guid id)
 	{
@@ -55,7 +62,6 @@ public class PackageController(EcoMealDbContext context, IWebHostEnvironment _en
 		var _package = await repository.GetByIdAsync((Guid)package.Uid);
 		if (_package is null) return NoContent();
 
-        _package.Uid = new Guid();
         _package.Name = package.Name;
         _package.ImageUrl = package.ImageUrl;
         _package.Description = package.Description;

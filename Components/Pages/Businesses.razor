@@ -1,5 +1,6 @@
 ﻿@page "/businesses"
 @inject HttpClient http
+@inject NavigationManager navigationManager
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 
@@ -17,7 +18,7 @@ else
         @foreach (var business in businesses)
         {
             <div class="col">
-                <Card Class="h-100" TextAlignment="Alignment.Center">
+                <Card Class="h-100" TextAlignment="Alignment.Center" @onclick="@(() => MoveToPackages(@business.Uid))">
                     <CardBody Class="d-flex flex-column h-100">
                         <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
     					@if (business.ImageUrl != null && business.ImageUrl.Length > 0)
@@ -90,7 +91,7 @@ else
 				<label class="col-md-3 col-form-label">Business Type <span class="text-danger">*</span></label>
 				<div class="col-md-9">
 					<select class="form-select" @bind="business.BusinessTypeId">
-						<option value="">-- Select a type --</option>
+						<option value="">Select a type</option>
 						@if (businessTypes != null)
 						{
 							@foreach (var type in businessTypes)
@@ -162,6 +163,9 @@ else
         await modal.ShowAsync();
     }
 
+	private async Task MoveToPackages(Guid uid) {
+		navigationManager.NavigateTo($"/businesses/{uid}");
+	}
     private async Task OpenDeleteModal(Business b)
     {
         editUid = b.Uid;

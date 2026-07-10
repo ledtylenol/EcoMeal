@@ -1,11 +1,18 @@
-@page "/packages"
+@page "/businesses/{Uid:guid}"
 @inject HttpClient http
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 
 <PageTitle>Packages</PageTitle>
 
-<h1>Packages</h1>
+@if(@business is not null)
+{
+<h1>Packages for @business.Name</h1>
+}
+else 
+{
+<h1>"Packages"</h1>
+}
 
 <Button Color="ButtonColor.Primary" Class="mb-3" @onclick="OpenAddModal">Add Package</Button>
 
@@ -19,7 +26,7 @@ else
         @foreach (var package in packages)
         {
             <div class="col">
-                <Card Class="h-100">
+                <Card Class="h-100" @onclick="() => OpenBuyModal(package)">
                     <CardBody Class="d-flex flex-column h-100">
                         <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
                             @if (!string.IsNullOrEmpty(package.ImageUrl))
@@ -58,33 +65,68 @@ else
 	</BodyTemplate>
 
 </Modal>
+
+<Modal @ref="buyModal" Title="Buy Package" IsVerticallyCentered="true" Size="ModalSize.Large">
+    <BodyTemplate>
+            <div class="col">
+                <Card Class="h-100">
+                    <CardBody Class="d-flex flex-column h-100">
+                        <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+                            @if (!string.IsNullOrEmpty(currentPackage!.ImageUrl))
+                            {
+                                <Image Src="@currentPackage!.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <Placeholder Style="height: 100%; width: 100%; display: block;" />
+                            }
+                        </div>
+                        <CardTitle>@currentPackage!.Name</CardTitle>
+                        <CardText>@currentPackage!.Description</CardText>
+                        <CardText><strong>$@currentPackage.Price.ToString("0.00")</strong> &middot; Qty: @currentPackage.Quantity</CardText>
+                        <CardText class="text-muted" style="font-size: 0.85rem;">
+                            Pickup: @currentPackage.PickupStart.ToString("MMM d, h:mm tt") - @currentPackage.PickupEnd.ToString("MMM d, h:mm tt")
+                        </CardText>
+                    </CardBody>
+                </Card>
+            </div>
+
+            <div class="col">
+            <EditForm EditContext="@orderPackageEditContext" OnValidSubmit="HandleOnValidOrderPackageSubmit">
+                <DataAnnotationsValidator />
+
+
+                <div class="form-group row mb-3">
+                    <label class="col-md-3 col-form-label">Quantity <span class="text-danger">*</span></label>
+                    <div class="col-md-9">
+                        <input type="number" min="1" max="@currentPackage!.Quantity" class="form-control" @bind="currentOrderPackage!.Quantity" />
+                        <ValidationMessage For="@(() => currentOrderPackage!.Quantity)" />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    @if(alreadyHadAdded)
+                    {
+                    <Button Type="ButtonType.Button" Color="ButtonColor.Danger" @onclick="@(() => DeleteOrderPackage(currentOrderPackage))" >Delete</Button>
+                    }
+                    <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseBuyModal">Cancel</Button>
+                    <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Save</Button>
+                </div>
+            </EditForm>
+            </div>
+    </BodyTemplate>
+</Modal>
+
 <Modal @ref="modal" Title="@(isEdit ? "Edit Package" : "Add Package")" IsVerticallyCentered="true" Size="ModalSize.Large">
     <BodyTemplate>
         <EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
             <DataAnnotationsValidator />
 
             <div class="form-group row mb-3">
-                <label class="col-md-3 col-form-label">Business <span class="text-danger">*</span></label>
-                <div class="col-md-9">
-                    <select class="form-select" @bind="package.BusinessId">
-                        <option value="">-- Select a business --</option>
-                        @if (businesses != null)
-                        {
-                            @foreach (var b in businesses)
-                            {
-                                <option value="@b.Uid">@b.Name</option>
-                            }
-                        }
-                    </select>
-                    <ValidationMessage For="@(() => package.BusinessId)" />
-                </div>
-            </div>
-
-            <div class="form-group row mb-3">
                 <label class="col-md-3 col-form-label">Package Type <span class="text-danger">*</span></label>
                 <div class="col-md-9">
                     <select class="form-select" @bind="package.PackageTypeId">
-                        <option value="">-- Select a type --</option>
+                        <option value="">Select a type</option>
                         @if (packageTypes != null)
                         {
                             @foreach (var t in packageTypes)
@@ -166,28 +208,46 @@ else
 </Modal>
 
 @code {
-    private List<PackageListItem>? packages;
-    private List<BusinessView>? businesses;
+    private static Guid CreatedUid = new("a48a3a93-9900-4bcc-b55a-f61bae0bdd3c");
+    [Parameter]
+    public Guid Uid {get; set;}
+    private List<Package>? packages;
+    private Business? business;
+    private Order? currentOrder;
+    private OrderPackage? currentOrderPackage;
+
+    private Package? currentPackage;
+    private List<OrderPackage> currentOrderPackages = [];
     private List<PackageTypeView>? packageTypes;
+    private bool alreadyHadAdded = false;
+    private uint purchaseQuantity = 0;
 
     private Modal modal = default!;
+    private Modal buyModal = default!;
 
     private Modal deleteModal = default!;
     private PackageView package = new();
     private EditContext? editContext;
+    private EditContext? orderPackageEditContext;
     private Guid? editUid;
     private bool isEdit => editUid is not null;
 
+    private async Task DeleteOrderPackage(OrderPackage? currentOrderPackage) 
+    {
+        currentOrderPackages.Remove(currentOrderPackage!);
+        await buyModal.HideAsync();
+
+    }
     protected override async Task OnInitializedAsync()
     {
         await LoadPackages();
-        businesses = await http.GetFromJsonAsync<List<BusinessView>>("api/business/");
         packageTypes = await http.GetFromJsonAsync<List<PackageTypeView>>("api/package_type/");
+        business = await http.GetFromJsonAsync<Business>($"api/business/{Uid}");
     }
 
     private async Task LoadPackages()
     {
-        packages = await http.GetFromJsonAsync<List<PackageListItem>>("api/package/");
+        packages = await http.GetFromJsonAsync<List<Package>>($"api/package/business/{Uid}");
     }
 
     private async Task OpenAddModal()
@@ -195,31 +255,54 @@ else
         editUid = null;
         package = new()
         {
+            BusinessId = Uid,
             PickupStart = DateTime.Now,
             PickupEnd = DateTime.Now.AddHours(1)
         };
         editContext = new(package);
         await modal.ShowAsync();
     }
+    private async Task OpenBuyModal(Package package)
+    {
+        
+        if (currentOrder is null)
+        {
+            currentOrder = new();
+            currentOrder.StatusId = CreatedUid;
+        }
+        //TODO: dict instead of list
 
-	private async Task DeletePackage(Guid? editUid) {
+        currentOrderPackage = currentOrderPackages.Find(op => op.PackageId == package.Uid);
+        alreadyHadAdded = currentOrderPackage is not null;
+        if (!alreadyHadAdded)
+        {
+            currentOrderPackage = new();
+        }
+        currentOrderPackage!.PackageId = package.Uid;
+        currentPackage = package;
+        orderPackageEditContext = new(currentOrderPackage);
+        await buyModal.ShowAsync();
+    }
+
+	private async Task DeletePackage(Guid? editUid) 
+    {
 		await http.DeleteAsync($"api/package/{editUid}");
 
         await deleteModal.HideAsync();
         await LoadPackages();
 	}
 
-    private async Task OpenDeleteModal(PackageListItem b)
+    private async Task OpenDeleteModal(Package b)
     {
         editUid = b.Uid;
         await deleteModal.ShowAsync();
     }
-    private async Task OpenEditModal(PackageListItem p)
+    private async Task OpenEditModal(Package p)
     {
         editUid = p.Uid;
         package = new PackageView
         {
-            BusinessId = p.BusinessId,
+            BusinessId = Uid,
             PackageTypeId = p.PackageTypeId,
             Name = p.Name,
             Description = p.Description,
@@ -238,6 +321,11 @@ else
         await modal.HideAsync();
     }
 
+    private async Task CloseBuyModal() 
+    {
+        currentOrderPackage = null;
+        await buyModal.HideAsync();
+    }
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
@@ -264,7 +352,7 @@ else
     {
         var dto = new PackageDTO
         {
-            BusinessId = package.BusinessId!.Value,
+            BusinessId = Uid,
             PackageTypeId = package.PackageTypeId!.Value,
             Name = package.Name,
             Description = package.Description,
@@ -289,6 +377,12 @@ else
         await LoadPackages();
     }
 
+    private async Task HandleOnValidOrderPackageSubmit()
+    {
+        currentOrderPackages.Add(currentOrderPackage!);
+        await buyModal.HideAsync();
+        await LoadPackages();
+    }
     public class PackageView
     {
         [Required(ErrorMessage = "Business required.")]
@@ -303,7 +397,7 @@ else
 
         public string? Description { get; set; } = string.Empty;
 
-        [Range(0, float.MaxValue, ErrorMessage = "Price must be positive")]
+        [Range(0.1, float.MaxValue, ErrorMessage = "Price must be positive")]
         public float Price { get; set; }
 
         [Range(1, double.MaxValue, ErrorMessage = "Quantity must be above 0")]
@@ -347,5 +441,13 @@ else
     public class UploadResult
     {
         public string Url { get; set; } = string.Empty;
+    }
+
+    public class OrderPackageView 
+    {
+        public Guid OrderId { get; set; }
+        public Guid PackageId { get; set; }
+        [Range(1, double.MaxValue, ErrorMessage = "Value must be greater than 0")]
+        public uint Quantity { get; set; }
     }
 }
