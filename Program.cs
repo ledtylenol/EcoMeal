@@ -4,6 +4,7 @@ using EcoMeal;
 using EcoMeal.Data;
 using EcoMeal.Components;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 internal class Program
 {
@@ -48,7 +49,9 @@ internal class Program
 							opts.LoginPath = "/login";
 						});
 		services.AddAuthorization();
+
 		services.AddScoped<IUserClaimsPrincipalFactory<User>, UserClaimsPrincipalFactory<User, IdentityRole<Guid>>>();
+		services.AddCascadingAuthenticationState();
 		var app = builder.Build();
 
 		using (var scope = app.Services.CreateScope())
@@ -74,6 +77,8 @@ internal class Program
 		app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 		app.UseHttpsRedirection();
 
+		app.UseAuthentication();
+		app.UseAuthorization();
 		app.UseAntiforgery();
 		app.MapStaticAssets();
 		app.UseStaticFiles();
@@ -81,8 +86,25 @@ internal class Program
 				.AddInteractiveServerRenderMode();
 
 		app.MapControllers();
-		app.UseAuthentication();
-		app.UseAuthorization();
+		app.MapPost("/login", async (HttpContext httpContext, [FromForm] string email, [FromForm] string password, [FromForm] string? returnUrl,
+				SignInManager<User> signInManager, UserManager<User> userManager) =>
+		{
+			var user = await userManager.FindByEmailAsync(email);
+			if (user is null)
+				return Results.Redirect("/login?error=1");
+
+			var result = await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
+			if (!result.Succeeded)
+				return Results.Redirect("/login?error=1");
+
+			return Results.Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+		}).DisableAntiforgery();
+
+		app.MapPost("/logout", async (HttpContext httpContext, SignInManager<User> signInManager) =>
+		{
+			await signInManager.SignOutAsync();
+			return Results.Redirect("/login");
+		}).DisableAntiforgery();
 		app.Run();
 	}
 }

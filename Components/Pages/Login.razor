@@ -9,29 +9,26 @@
 
     <h1>Package Types</h1>
 
-<EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
-    <DataAnnotationsValidator />
+<form method="post" action="/login">
+    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
     <div class="form-group row mb-3 justify-content-center">
         <label class="col-md-3 col-form-label">Email <span class="text-danger">*</span></label>
         <div class="col-md-9">
-            <TextInput @bind-Value="loginUser!.Email" Placeholder="Enter Email" />
-            <ValidationMessage For="@(() => loginUser!.Email)" />
+            <input class="form-control" name="email" />
         </div>
     </div>
     <div class="form-group row mb-3">
         <label class="col-md-3 col-form-label">Password <span class="text-danger">*</span></label>
         <div class="col-md-9">
-            <PasswordInput @bind-Value="loginUser!.Password" Placeholder="Password" />
-            <ValidationMessage For="@(() => loginUser!.Password)" />
+            <input class="form-control" type="password" name="password" />
         </div>
     </div>
     <div class="d-flex justify-content-center gap-2">
-        <Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenRegisterModal">Register</Button>
-        <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Login</Button>
+        <Button Color="ButtonColor.Primary" @onclick="OpenRegisterModal" >Register</Button>
+        <button type="submit" class="btn btn-success">Login</button>
     </div>
-</EditForm>
-
+</form>
 
 <Modal @ref="modal" Title="Register" IsVerticallyCentered="true">
     <BodyTemplate>
@@ -86,6 +83,9 @@
 </div>
 
 @code {
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
     private Modal modal = default!;
     private EditContext? editContext;
     private EditContext? registerEditContext;

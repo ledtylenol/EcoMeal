@@ -1,6 +1,4 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
-@inject HttpClient http;
-@inject NavigationManager nav;
 <div class="top-row ps-3 navbar navbar-dark">
 	<div class="container-fluid">
 		<a class="navbar-brand" href="">netrom</a>
@@ -12,6 +10,19 @@
 
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
 	<nav class="nav flex-column">
+		<div class="nav-item px-3">
+			<AuthorizeView>
+				<Authorized>
+					<span class="nav-link">@context.User.Identity?.Name</span>
+					<form method="post" action="/logout">
+						<button type="submit" class="btn btn-outline-secondary">Log out</button>
+					</form>
+				</Authorized>
+				<NotAuthorized>
+					<a href="/login" class="nav-link">Log in</a>
+				</NotAuthorized>
+			</AuthorizeView>
+		</div>
 		<div class="nav-item px-3">
 			<NavLink class="nav-link" href="" Match="NavLinkMatch.All">
 				<span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
@@ -32,15 +43,6 @@
 				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Package Types
 			</NavLink>
 		</div>
-		<AuthorizeView>
-		<Authorized>
-		<div class="nav-item px-3">
-			<Button class="nav-link" @onclick="LogOut" >
-				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Log Out
-			</Button>
-		</div>
-		</Authorized>
-		</AuthorizeView>
 	</nav>
 </div>
 
@@ -52,11 +54,5 @@
 	private void ToggleNavMenu()
 	{
 		collapseNavMenu = !collapseNavMenu;
-	}
-	private async void LogOut() 
-	{
-		await http.PostAsync("api/auth/logout", null);
-		nav.NavigateTo("/login");
-
 	}
 }
