@@ -1,6 +1,19 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.LoggedLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(LoggedLayout)">
+            <NotAuthorized>
+                @{
+                    NavigationManager.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}", forceLoad: true);
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
     </Found>
 </Router>
+
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+}

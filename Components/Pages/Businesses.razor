@@ -3,7 +3,10 @@
 @inject NavigationManager navigationManager
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 
+@attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Businesses</PageTitle>
 
 <h1>Businesses</h1>
@@ -37,12 +40,16 @@ else
 						else{
                         	<CardText>@business.Description</CardText>
 						}
+                        <AuthorizeView Roles="BusinessOwner">
+                        <Authorized>
 						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
 									@onclick="@(() => OpenEditModal(business))">Edit</Button>
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
 									@onclick="@(() => OpenDeleteModal(business))">Delete</Button>
 						</div>
+                        </Authorized>
+                        </AuthorizeView>
                     </CardBody>
                 </Card>
             </div>

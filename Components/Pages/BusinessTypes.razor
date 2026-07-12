@@ -2,7 +2,9 @@
 @inject HttpClient http
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
 
+@attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Business Types</PageTitle>
 
 <h1>Business Types</h1>

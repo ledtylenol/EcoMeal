@@ -4,6 +4,7 @@ using EcoMeal.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EcoMeal.Migrations
 {
     [DbContext(typeof(EcoMealDbContext))]
-    partial class EcoMealDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712124136_IdentityMigration2")]
+    partial class IdentityMigration2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,6 +313,22 @@ namespace EcoMeal.Migrations
                     b.ToTable("PackageTypes");
                 });
 
+            modelBuilder.Entity("Role", b =>
+                {
+                    b.Property<Guid>("Uid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Uid");
+
+                    b.ToTable("Role");
+                });
+
             modelBuilder.Entity("Status", b =>
                 {
                     b.Property<Guid>("Uid")
@@ -352,6 +371,11 @@ namespace EcoMeal.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
@@ -368,6 +392,9 @@ namespace EcoMeal.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("longtext");
@@ -387,6 +414,8 @@ namespace EcoMeal.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("RoleId");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -518,6 +547,17 @@ namespace EcoMeal.Migrations
                     b.Navigation("PackageType");
                 });
 
+            modelBuilder.Entity("User", b =>
+                {
+                    b.HasOne("Role", "Role")
+                        .WithMany("Users")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("Business", b =>
                 {
                     b.Navigation("Orders");
@@ -543,6 +583,11 @@ namespace EcoMeal.Migrations
             modelBuilder.Entity("PackageType", b =>
                 {
                     b.Navigation("Packages");
+                });
+
+            modelBuilder.Entity("Role", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("Status", b =>

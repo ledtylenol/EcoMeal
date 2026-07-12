@@ -83,17 +83,6 @@ public class PackageTypeTypeConfiguration : IEntityTypeConfiguration<PackageType
 		builder.HasMany(p => p.Packages).WithOne(p => p.PackageType).HasForeignKey(p => p.PackageTypeId);
 	}
 }
-public class RoleTypeConfiguration : IEntityTypeConfiguration<Role>
-{
-	public void Configure(EntityTypeBuilder<Role> builder)
-	{
-		builder.HasKey(p => p.Uid);
-
-		builder.Property(p => p.Name).IsRequired().HasMaxLength(50);
-
-		builder.HasMany(p => p.Users).WithOne(p => p.Role).HasForeignKey(p => p.RoleId);
-	}
-}
 public class StatusTypeConfiguration : IEntityTypeConfiguration<Status>
 {
 	public void Configure(EntityTypeBuilder<Status> builder)
@@ -105,17 +94,11 @@ public class StatusTypeConfiguration : IEntityTypeConfiguration<Status>
 		builder.HasMany(p => p.Orders).WithOne(p => p.Status).HasForeignKey(p => p.StatusId);
 	}
 }
+
 public class UserTypeConfiguration : IEntityTypeConfiguration<User>
 {
 	public void Configure(EntityTypeBuilder<User> builder)
 	{
-		builder.HasKey(p => p.Uid);
-		builder.HasOne(p => p.Role).WithMany(r => r.Users).HasForeignKey(p => p.RoleId).IsRequired();
-
-		builder.Property(p => p.Name).HasMaxLength(100).IsRequired();
-		builder.Property(p => p.Email).HasMaxLength(100);
-		builder.Property(p => p.Password).HasMaxLength(100);
-
 		builder.HasMany(p => p.Orders).WithOne(o => o.User).HasForeignKey(o => o.UserId);
 	}
 }

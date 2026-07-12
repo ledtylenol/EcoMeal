@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using EcoMeal;
 using EcoMeal.Data;
 using EcoMeal.Components;
+using Microsoft.AspNetCore.Identity;
 
 internal class Program
 {
@@ -13,25 +14,56 @@ internal class Program
 		var builder = WebApplication.CreateBuilder(args);
 
 		// Add services to the container.
-		builder.Services.AddRazorComponents()
+		var services = builder.Services;
+		services.AddRazorComponents()
 				.AddInteractiveServerComponents();
 
-		builder.Services.AddBlazorBootstrap();
-		builder.Services.AddBlazorBootstrap();
+		services.AddBlazorBootstrap();
 
 		var serverVersion = new MariaDbServerVersion(new Version(12, 3, 2));
-		builder.Services.AddHttpClient();
-		builder.Services.AddDbContext<EcoMealDbContext>(
+		services.AddHttpClient();
+		services.AddDbContext<EcoMealDbContext>(
 				dbContextOptions =>
 				{
 					dbContextOptions.UseMySql(connectionString, serverVersion);
 					dbContextOptions.LogTo(Console.WriteLine, LogLevel.Information)
 					.EnableDetailedErrors();
 				});
-		builder.Services.AddControllers().AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
-		builder.Services.AddScoped(sp => new HttpClient {BaseAddress = new("http://localhost:5198")});
+		services.AddControllers().AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
+		services.AddScoped(sp => new HttpClient { BaseAddress = new("http://localhost:5198") });
+		builder.Services.AddIdentityCore<User>(options =>
+		{
+			options.Password.RequireDigit = true;
+			options.Password.RequiredLength = 8;
+			options.Password.RequireNonAlphanumeric = false;
+			options.User.RequireUniqueEmail = true;
+		})
+				.AddRoles<IdentityRole<Guid>>()
+				.AddEntityFrameworkStores<EcoMealDbContext>()
+				.AddSignInManager()
+				.AddDefaultTokenProviders();
+		services.AddAuthentication(IdentityConstants.ApplicationScheme)
+				.AddCookie(IdentityConstants.ApplicationScheme, opts =>
+						{
+							opts.LoginPath = "/login";
+						});
+		services.AddAuthorization();
+		services.AddScoped<IUserClaimsPrincipalFactory<User>, UserClaimsPrincipalFactory<User, IdentityRole<Guid>>>();
 		var app = builder.Build();
 
+		using (var scope = app.Services.CreateScope())
+		{
+			var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+			string[] roles = ["Admin", "BusinessOwner", "Customer"];
+
+			foreach (var roleName in roles)
+			{
+				if (!await roleManager.RoleExistsAsync(roleName))
+				{
+					await roleManager.CreateAsync(new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = roleName });
+				}
+			}
+		}
 		// Configure the HTTP request pipeline.
 		if (!app.Environment.IsDevelopment())
 		{
@@ -49,6 +81,8 @@ internal class Program
 				.AddInteractiveServerRenderMode();
 
 		app.MapControllers();
+		app.UseAuthentication();
+		app.UseAuthorization();
 		app.Run();
 	}
 }

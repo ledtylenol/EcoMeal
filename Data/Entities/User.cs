@@ -1,21 +1,21 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 
-public class User
+public class User : IdentityUser<Guid>
 {
-	public Guid Uid { get; set; }
-	public Guid RoleId { get; set; }
-	[InverseProperty("Users")]
-	public Role? Role { get; set; }
-	public string Email { get; set; }
-	public string Password { get; set; }
-	public string Name { get; set; }
 	public ICollection<Order> Orders { get; set; } = [];
 }
 
+
+public class LoginDTO
+{
+	public string Email { get; set; }
+	public string Password { get; set; }
+}
 public class UserDTO
 {
-	public Guid? Uid { get; set; }
-	public Guid RoleId { get; set; }
+	public Guid? Id { get; set; }
+	public string RoleName { get; set; }
 	public string Email { get; set; }
 	public string Password { get; set; }
 	public string Name { get; set; }

@@ -1,10 +1,13 @@
 @page "/login"
 <div class="login_form">
 @inject HttpClient http
+@inject NavigationManager navigationManager
 @rendermode InteractiveServer
+@using System.Net;
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
 
-<h1>Package Types</h1>
+    <h1>Package Types</h1>
 
 <EditForm EditContext="@editContext" OnValidSubmit="HandleOnValidSubmit">
     <DataAnnotationsValidator />
@@ -24,11 +27,11 @@
         </div>
     </div>
     <div class="d-flex justify-content-center gap-2">
-        <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Save</Button>
+        <Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenRegisterModal">Register</Button>
+        <Button Type="ButtonType.Submit" Color="ButtonColor.Success">Login</Button>
     </div>
 </EditForm>
 
-<Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenRegisterModal">Register</Button>
 
 <Modal @ref="modal" Title="Register" IsVerticallyCentered="true">
     <BodyTemplate>
@@ -36,19 +39,19 @@
             <DataAnnotationsValidator />
 
             <div class="form-group row mb-3">
-                <label class="col-md-3 col-form-label">Package Type <span class="text-danger">*</span></label>
+                <label class="col-md-3 col-form-label">Role <span class="text-danger">*</span></label>
                 <div class="col-md-9">
-                    <select class="form-select" @bind="user!.RoleId">
+                    <select class="form-select" @bind="user!.RoleName">
                         <option value="">Select a type</option>
                         @if (roles is not null)
                         {
                             @foreach (var t in roles)
                             {
-                                <option value="@t.Uid">@t.Name</option>
+                                <option value="@t.Name">@t.Name</option>
                             }
                         }
                     </select>
-                    <ValidationMessage For="@(() => user.RoleId)" />
+                    <ValidationMessage For="@(() => user.RoleName)" />
                 </div>
             </div>
 
@@ -62,8 +65,15 @@
             <div class="form-group row mb-3">
                 <label class="col-md-3 col-form-label">Email <span class="text-danger">*</span></label>
                 <div class="col-md-9">
-                    <TextInput @bind-Value="user.Email" Placeholder="Enter name" />
+                    <TextInput @bind-Value="user.Email" Placeholder="Enter email" />
                     <ValidationMessage For="@(() => user.Email)" />
+                </div>
+            </div>
+            <div class="form-group row mb-3">
+                <label class="col-md-3 col-form-label">Password <span class="text-danger">*</span></label>
+                <div class="col-md-9">
+                    <PasswordInput @bind-Value="user.Password" Placeholder="Enter password" />
+                    <ValidationMessage For="@(() => user.Password)" />
                 </div>
             </div>
             <div class="d-flex justify-content-end gap-2">
@@ -80,7 +90,7 @@
     private EditContext? editContext;
     private EditContext? registerEditContext;
 
-    private List<Role>? roles = [];
+    private List<IdentityRole<Guid>>? roles = [];
     private UserView? user;
     private UserView? loginUser;
 
@@ -88,7 +98,7 @@
     {
         loginUser = new();
         editContext = new(loginUser);
-        roles = await http.GetFromJsonAsync<List<Role>>("api/role");
+        roles = await http.GetFromJsonAsync<List<IdentityRole<Guid>>>("api/role");
     }
 
     private async Task OpenRegisterModal() 
@@ -105,17 +115,41 @@
 
     private async Task HandleOnValidRegister() 
     {
+        var dto = new UserDTO
+        {
+            Name = user!.Name!,
+            RoleName = user!.RoleName!,
+            Email = user!.Email!,
+            Password = user!.Password!,
 
+        };
+
+        var res = await http.PostAsJsonAsync("api/auth/register", dto);
+        await modal.HideAsync();
     }
     private async Task HandleOnValidSubmit()
     {
 
-        await modal.HideAsync();
+        var dto = new LoginDTO
+        {
+            Email = loginUser!.Email!,
+            Password = loginUser!.Password!,
+
+        };
+
+        var res = await http.PostAsJsonAsync("api/auth/login", dto);
+
+        if (res.IsSuccessStatusCode )
+            navigationManager.NavigateTo("/", forceLoad: true);
+        else {
+            Console.WriteLine($"Error received {res.StatusCode}");
+        }
     }
     private class UserView {
         public string? Name;
         public string? Email;
         public string? Password;
-        public Guid? RoleId;
+        public string? RoleName;
     }
+
 }

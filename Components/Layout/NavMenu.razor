@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient http;
+@inject NavigationManager nav;
+<div class="top-row ps-3 navbar navbar-dark">
 	<div class="container-fluid">
 		<a class="navbar-brand" href="">netrom</a>
 		<button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -29,6 +32,15 @@
 				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Package Types
 			</NavLink>
 		</div>
+		<AuthorizeView>
+		<Authorized>
+		<div class="nav-item px-3">
+			<Button class="nav-link" @onclick="LogOut" >
+				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Log Out
+			</Button>
+		</div>
+		</Authorized>
+		</AuthorizeView>
 	</nav>
 </div>
 
@@ -40,5 +52,11 @@
 	private void ToggleNavMenu()
 	{
 		collapseNavMenu = !collapseNavMenu;
+	}
+	private async void LogOut() 
+	{
+		await http.PostAsync("api/auth/logout", null);
+		nav.NavigateTo("/login");
+
 	}
 }
