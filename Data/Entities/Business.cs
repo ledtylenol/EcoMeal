@@ -3,13 +3,15 @@ using System.ComponentModel.DataAnnotations.Schema;
 public class Business
 {
 	public Guid Uid { get; set; }
-	public string Name { get; set; }
+	public Guid OwnerId { get; set; }
+	public User? Owner { get; set; }
+	public string? Name { get; set; }
 	public string? Description { get; set; }
 	public string? Address { get; set; }
 	public string? ImageUrl { get; set; }
 	public Guid BusinessTypeId { get; set; }
 
-	public BusinessType BusinessType { get; set; }
+	public BusinessType? BusinessType { get; set; }
 
 	public ICollection<Package> Packages { get; set; } = [];
 	public ICollection<Order> Orders { get; set; } = [];
@@ -17,7 +19,7 @@ public class Business
 
 public class BusinessDTO
 {
-	
+
 	public BusinessDTO()
 	{
 	}
@@ -31,8 +33,9 @@ public class BusinessDTO
 	}
 
 
-	public Guid? Uid {get; set;}
-	public string Name { get; set; }
+	public Guid? Uid { get; set; }
+	public Guid OwnerId { get; set; }
+	public string? Name { get; set; }
 	public string? Description { get; set; }
 	public string? Address { get; set; }
 	public string? ImageUrl { get; set; }

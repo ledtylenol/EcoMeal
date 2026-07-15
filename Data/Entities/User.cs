@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 public class User : IdentityUser<Guid>
 {
 	public ICollection<Order> Orders { get; set; } = [];
+	public ICollection<Business> Businesses { get; set; } = [];
 }
 
 

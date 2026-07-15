@@ -1,13 +1,11 @@
 using EcoMeal.Data;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 [Route("api/[controller]")]
 [ApiController]
 public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _env) : ControllerBase
 {
-	private BusinessRepository repository = new(context);
-	private IWebHostEnvironment env = _env;
+	private readonly BusinessRepository repository = new(context);
 
 	[HttpGet]
 	public async Task<ActionResult<IEnumerable<Business>>> GetBusinesses()
@@ -16,7 +14,7 @@ public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _e
 	}
 
 	[HttpGet("{id}")]
-	public async Task<ActionResult<Business>> GetBusinesses(Guid id)
+	public async Task<ActionResult<Business?>> GetBusinesses(Guid id)
 	{
 		var business = await repository.GetByIdAsync(id);
 		if (business == null) return NoContent();
@@ -47,7 +45,7 @@ public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _e
 	[HttpPut]
 	public async Task<ActionResult<Business>> PutBusiness(BusinessDTO business)
 	{
-		if (business.Uid is null ) return NoContent();
+		if (business.Uid is null) return NoContent();
 		var _business = await repository.GetByIdAsync((Guid)business.Uid);
 		if (_business is null) return NoContent();
 
@@ -86,7 +84,7 @@ public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _e
 		var fileName = $"{Guid.NewGuid()}{ext}";
 		var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads", "businesses");
 		Console.WriteLine("Uploading...");
-		Directory.CreateDirectory(uploadsFolder); 
+		Directory.CreateDirectory(uploadsFolder);
 
 		var filePath = Path.Combine(uploadsFolder, fileName);
 		using (var stream = new FileStream(filePath, FileMode.Create))
@@ -94,7 +92,7 @@ public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _e
 			await file.CopyToAsync(stream);
 		}
 
-		var relativeUrl = $"/uploads/{fileName}";
+		var relativeUrl = $"/uploads/businesses/{fileName}";
 		return Ok(new { url = relativeUrl });
 	}
 

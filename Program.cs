@@ -20,9 +20,11 @@ internal class Program
 				.AddInteractiveServerComponents();
 
 		services.AddBlazorBootstrap();
+		services.AddRazorPages();
 
 		var serverVersion = new MariaDbServerVersion(new Version(12, 3, 2));
 		services.AddHttpClient();
+		services.AddHttpContextAccessor();
 		services.AddDbContext<EcoMealDbContext>(
 				dbContextOptions =>
 				{
@@ -100,6 +102,7 @@ internal class Program
 			return Results.Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
 		}).DisableAntiforgery();
 
+		app.MapRazorPages();
 		app.MapPost("/logout", async (HttpContext httpContext, SignInManager<User> signInManager) =>
 		{
 			await signInManager.SignOutAsync();

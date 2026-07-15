@@ -14,6 +14,7 @@ public class BusinessTypeConfiguration : IEntityTypeConfiguration<Business>
 		builder.Property(p => p.Description).HasMaxLength(500);
 		builder.Property(p => p.Address).HasMaxLength(100);
 		builder.Property(p => p.ImageUrl).HasMaxLength(100);
+		builder.HasOne(p => p.Owner).WithMany(u => u.Businesses).HasForeignKey(p => p.OwnerId);
 	}
 }
 public class BusinessTypeTypeConfiguration : IEntityTypeConfiguration<BusinessType>
@@ -100,5 +101,6 @@ public class UserTypeConfiguration : IEntityTypeConfiguration<User>
 	public void Configure(EntityTypeBuilder<User> builder)
 	{
 		builder.HasMany(p => p.Orders).WithOne(o => o.User).HasForeignKey(o => o.UserId);
+		builder.HasMany(p => p.Businesses).WithOne(o => o.Owner).HasForeignKey(o => o.OwnerId);
 	}
 }

@@ -18,8 +18,8 @@ public class AuthController(
 	{
 		var user = new User
 		{
-			UserName = dto.Email,
-			Email = dto.Email
+			Email = dto.Email,
+			UserName = dto.Name
 		};
 
 		Console.WriteLine($"Creating user {dto.Name} {dto.Email} ({dto.Password})");

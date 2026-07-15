@@ -1,11 +1,18 @@
 @page "/businesses/{Uid:guid}"
 @inject HttpClient http
+@inject IHttpContextAccessor context
+@inject UserManager<User> manager;
+@inject NavigationManager navManager;
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Packages</PageTitle>
 
-@if(@business is not null)
+@if(business is not null)
 {
 <h1>Packages for @business.Name</h1>
 }
@@ -14,7 +21,10 @@ else
 <h1>"Packages"</h1>
 }
 
-<Button Color="ButtonColor.Primary" Class="mb-3" @onclick="OpenAddModal">Add Package</Button>
+@if(IsOwner)
+{
+    <Button Color="ButtonColor.Primary" Class="mb-3" @onclick="OpenAddModal">Add Package</Button>
+}
 
 @if (packages == null)
 {
@@ -22,8 +32,40 @@ else
 }
 else
 {
+
+@if(currentOrderPackages.Any()) {
+    <Accordion Class = "justify-content: top; align-items: right; col; mb-2" AlwaysOpen=true >
+    @foreach(var op in currentOrderPackages) {
+        <AccordionItem Title="@op.Package!.Name">
+            <Content>
+                <Card >
+                    <CardBody Class="d-flex row width:50px">
+                        <div class="mb-2" style="height: 150px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+                            @if (!string.IsNullOrEmpty(op.Package.ImageUrl))
+                            {
+                                <Image Src="@op.Package.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <Placeholder Style="height: 100%; width: 100%; display: block;" />
+                            }
+                        </div>
+                        <CardText Class="mb-2">@op.Package.Description</CardText>
+                        <CardText Class="mb-2"><strong>$@op.Package.Price.ToString("0.00")</strong> &middot; Qty: @op.Quantity</CardText>
+                        <CardText Class="text-muted mb-2" style="font-size: 0.85rem;">
+                            Pickup: @op.Package.PickupStart.ToString("MMM d, h:mm tt") - @op.Package.PickupEnd.ToString("MMM d, h:mm tt")
+                        </CardText>
+                    </CardBody>
+                </Card>
+            </Content>
+        </AccordionItem>
+    }
+    <Button Class="my-2" @onclick="SubmitOrder" Color="ButtonColor.Success">Confirm</Button>
+    </Accordion>
+
+}
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
-        @foreach (var package in packages)
+        @foreach (var package in packages.Where(p => p.Quantity > 0))
         {
             <div class="col">
                 <Card Class="h-100" @onclick="() => OpenBuyModal(package)">
@@ -44,12 +86,14 @@ else
                         <CardText class="text-muted" style="font-size: 0.85rem;">
                             Pickup: @package.PickupStart.ToString("MMM d, h:mm tt") - @package.PickupEnd.ToString("MMM d, h:mm tt")
                         </CardText>
+                        @if(IsOwner) {
 						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
 									@onclick="@(() => OpenEditModal(package))">Edit</Button>
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
 									@onclick="@(() => OpenDeleteModal(package))">Delete</Button>
 						</div>
+                        }
                     </CardBody>
                 </Card>
             </div>
@@ -211,8 +255,10 @@ else
     private static Guid CreatedUid = new("a48a3a93-9900-4bcc-b55a-f61bae0bdd3c");
     [Parameter]
     public Guid Uid {get; set;}
+    private bool IsOwner {get; set;} = false;
     private List<Package>? packages;
     private Business? business;
+    private User? currentUser;
     private Order? currentOrder;
     private OrderPackage? currentOrderPackage;
 
@@ -242,7 +288,9 @@ else
     {
         await LoadPackages();
         packageTypes = await http.GetFromJsonAsync<List<PackageTypeView>>("api/package_type/");
-        business = await http.GetFromJsonAsync<Business>($"api/business/{Uid}");
+        business = await http.GetFromJsonAsync<Business?>($"api/business/{Uid}");
+        currentUser = await manager.GetUserAsync(context.HttpContext!.User);
+        IsOwner = currentUser is not null && ((await manager.GetRolesAsync(currentUser)).Contains("Admin") || currentUser == business?.Owner!);
     }
 
     private async Task LoadPackages()
@@ -269,6 +317,8 @@ else
         {
             currentOrder = new();
             currentOrder.StatusId = CreatedUid;
+            currentOrder.User = currentUser;
+            currentOrder.Business = business;
         }
         //TODO: dict instead of list
 
@@ -279,6 +329,7 @@ else
             currentOrderPackage = new();
         }
         currentOrderPackage!.PackageId = package.Uid;
+        currentOrderPackage.Package = package;
         currentPackage = package;
         orderPackageEditContext = new(currentOrderPackage);
         await buyModal.ShowAsync();
@@ -379,8 +430,17 @@ else
 
     private async Task HandleOnValidOrderPackageSubmit()
     {
+        if (!alreadyHadAdded)
         currentOrderPackages.Add(currentOrderPackage!);
         await buyModal.HideAsync();
+        await LoadPackages();
+    }
+
+    private async Task SubmitOrder() 
+    {
+        currentOrder.OrderPackages = currentOrderPackages;
+        await http.PostAsJsonAsync("api/order", currentOrder );
+        navManager.NavigateTo($"/businesses/{Uid}", true);
         await LoadPackages();
     }
     public class PackageView

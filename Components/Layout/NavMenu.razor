@@ -1,7 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 <div class="top-row ps-3 navbar navbar-dark">
 	<div class="container-fluid">
-		<a class="navbar-brand" href="">netrom</a>
+		<a class="navbar-brand" href="">EcoMeal</a>
 		<button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
 			<span class="navbar-toggler-icon"></span>
 		</button>
@@ -19,30 +19,43 @@
 					</form>
 				</Authorized>
 				<NotAuthorized>
-					<a href="/login" class="nav-link">Log in</a>
+					<div class="nav-item px-3">
+						<NavLink href="/login" Match="NavLinkMatch.All">
+							<Icon Size="IconSize.x3" class="bi inline-block padding-right:10px" Name="IconName.ArrowLeftSquareFill" />Log in
+						</NavLink>
+					</div>
 				</NotAuthorized>
 			</AuthorizeView>
 		</div>
-		<div class="nav-item px-3">
-			<NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-				<span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-			</NavLink>
-		</div>
-		<div class="nav-item px-3">
-			<NavLink class="nav-link" href="businesses">
-				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Businesses
-			</NavLink>
-		</div>
-		<div class="nav-item px-3">
-			<NavLink class="nav-link" href="business_types">
-				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Business Types
-			</NavLink>
-		</div>
-		<div class="nav-item px-3">
-			<NavLink class="nav-link" href="package_types">
-				<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Package Types
-			</NavLink>
-		</div>
+		<AuthorizeView>
+			<Authorized>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+						<span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+					</NavLink>
+				</div>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="businesses">
+						<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Businesses
+					</NavLink>
+				</div>
+
+			</Authorized>
+		</AuthorizeView>
+		<AuthorizeView Roles="Admin">
+			<Authorized>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="business_types">
+						<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Business Types
+					</NavLink>
+				</div>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="package_types">
+						<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Package Types
+					</NavLink>
+				</div>
+			</Authorized>
+		</AuthorizeView>
 	</nav>
 </div>
 

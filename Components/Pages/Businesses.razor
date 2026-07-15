@@ -1,10 +1,13 @@
 ﻿@page "/businesses"
 @inject HttpClient http
+@inject IHttpContextAccessor accessor;
 @inject NavigationManager navigationManager
+@inject UserManager<User> manager;
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 
 @attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Businesses</PageTitle>
@@ -40,7 +43,7 @@ else
 						else{
                         	<CardText>@business.Description</CardText>
 						}
-                        <AuthorizeView Roles="BusinessOwner">
+                        <AuthorizeView Roles="BusinessOwner,Admin">
                         <Authorized>
 						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
@@ -138,6 +141,7 @@ else
 @code {
 	private List<BusinessTypeView>? businessTypes;
     private List<Business>? businesses;
+    private User? currentUser;
     private Modal modal = default!;
     private Modal deleteModal = default!;
     private BusinessView business = new();
@@ -149,6 +153,7 @@ else
     {
         await LoadBusinesses();
 		businessTypes = await http.GetFromJsonAsync<List<BusinessTypeView>>("api/business_type/");
+        currentUser = await manager.GetUserAsync(accessor.HttpContext!.User);
     }
 
 	private async Task DeleteBusiness(Guid? editUid) {
@@ -205,13 +210,18 @@ else
     private async Task HandleOnValidSubmit()
     {
 		Console.WriteLine(business.ImageUrl);
+        if (currentUser is null) {
+            return;
+        }
         var dto = new BusinessDTO
         {
             Name = business.Name,
             Address = business.Address,
             Description = business.Description,
             ImageUrl = business.ImageUrl,
-            BusinessTypeId = new Guid("76dc3a76-310b-4751-ae9f-753510cb5919")
+            BusinessTypeId = (Guid)business.BusinessTypeId!,
+            OwnerId = currentUser.Id
+            
         };
 
         if (editUid is not null)
