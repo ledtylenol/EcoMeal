@@ -1,5 +1,5 @@
 @page "/package_types"
-@inject HttpClient http
+@inject IRepository<PackageType> repository;
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 
@@ -25,7 +25,7 @@ else
 						<div class="mt-auto row row-cols-2 vertical-align-end">
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
 									@onclick="@(() => OpenEditModal(package))">Edit</Button>
-							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Secondary"
+							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
 									@onclick="@(() => OpenDeleteModal(package))">Delete</Button>
 						</div>
                     </CardBody>
@@ -41,7 +41,7 @@ else
 	<BodyTemplate>
 		<h1>Are you sure?</h1>
         <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseDeleteModal">Cancel</Button>
-		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => DeletePackage(editUid))">Delete</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Danger" @onclick="@(() => DeletePackage(editUid))">Delete</Button>
 	</BodyTemplate>
 
 </Modal>
@@ -80,14 +80,20 @@ else
     }
 
 	private async Task DeletePackage(Guid? editUid) {
-		await http.DeleteAsync($"api/package_type/{editUid}");
+        if (editUid is null )
+        {
+            await deleteModal.HideAsync();
+            await LoadPackageTypes();
+            return;
+        }
+        await repository.DeleteAsync((Guid)editUid);
 
         await deleteModal.HideAsync();
         await LoadPackageTypes();
 	}
     private async Task LoadPackageTypes()
     {
-        packageTypes = await http.GetFromJsonAsync<List<PackageType>>("api/package_type/");
+        packageTypes = await repository.GetAllAsync();
     }
 
     private async Task OpenAddModal()
@@ -128,17 +134,17 @@ else
     {
         var dto = new PackageType
         {
-            Name = package.Name,
+            Name = package.Name!,
         };
 
         if (editUid is not null)
         {
             dto.Uid = editUid.Value;
-            await http.PutAsJsonAsync("api/package_type/", dto);
+            await repository.UpdateAsync(dto, dto.Uid);
         }
         else
         {
-            await http.PostAsJsonAsync("api/package_type/", dto);
+            await repository.AddAsync(dto);
         }
 
         await modal.HideAsync();

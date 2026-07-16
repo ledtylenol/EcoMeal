@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EcoMeal.Migrations
 {
     [DbContext(typeof(EcoMealDbContext))]
-    [Migration("20260715061658_owner")]
-    partial class owner
+    [Migration("20260716153143_cycles2")]
+    partial class cycles2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -52,7 +52,14 @@ namespace EcoMeal.Migrations
                         .HasColumnType("varchar(100)");
 
                     b.Property<Guid>("OwnerId")
-                        .HasColumnType("char(36)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe31d"));
+
+                    b.Property<Guid>("StatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe310"));
 
                     b.HasKey("Uid");
 
@@ -60,7 +67,25 @@ namespace EcoMeal.Migrations
 
                     b.HasIndex("OwnerId");
 
+                    b.HasIndex("StatusId");
+
                     b.ToTable("Businesses");
+                });
+
+            modelBuilder.Entity("BusinessStatus", b =>
+                {
+                    b.Property<Guid>("Uid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Uid");
+
+                    b.ToTable("BusinessStatus");
                 });
 
             modelBuilder.Entity("BusinessType", b =>
@@ -413,9 +438,17 @@ namespace EcoMeal.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BusinessStatus", "Status")
+                        .WithMany("Businesses")
+                        .HasForeignKey("StatusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("BusinessType");
 
                     b.Navigation("Owner");
+
+                    b.Navigation("Status");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -539,6 +572,11 @@ namespace EcoMeal.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("Packages");
+                });
+
+            modelBuilder.Entity("BusinessStatus", b =>
+                {
+                    b.Navigation("Businesses");
                 });
 
             modelBuilder.Entity("BusinessType", b =>

@@ -40,11 +40,20 @@ public class BusinessTypeController(EcoMealDbContext context) : ControllerBase
 	[HttpPut]
 	public async Task<ActionResult<BusinessType>> PutBusinessType(BusinessType businessType)
 	{
-		await repository.UpdateAsync(businessType);
+		await repository.UpdateAsync(businessType, businessType.Uid);
 
 		return CreatedAtAction(
 				nameof(GetBusinessTypes),
 				new { id = businessType.Uid }
 				);
+	}
+
+	[HttpDelete("{guid}")]
+	public async Task<ActionResult<BusinessType>> DeleteBusinessType(Guid guid)
+	{
+		var businessType = await repository.GetByIdAsync(guid);
+		if (businessType is null) return NotFound();
+		await repository.DeleteAsync(businessType);
+		return NoContent();
 	}
 }

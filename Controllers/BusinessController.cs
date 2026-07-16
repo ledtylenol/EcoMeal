@@ -54,7 +54,7 @@ public class BusinessController(EcoMealDbContext context, IWebHostEnvironment _e
 		_business.ImageUrl = business.ImageUrl;
 		_business.BusinessTypeId = business.BusinessTypeId;
 
-		await repository.UpdateAsync(_business);
+		await repository.UpdateAsync(_business, _business.Uid);
 
 		return CreatedAtAction(
 				nameof(GetBusinesses),

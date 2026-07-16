@@ -4,6 +4,7 @@ using EcoMeal.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EcoMeal.Migrations
 {
     [DbContext(typeof(EcoMealDbContext))]
-    partial class EcoMealDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716140234_bstatus")]
+    partial class bstatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,6 +34,9 @@ namespace EcoMeal.Migrations
                     b.Property<string>("Address")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<Guid?>("BusinessStatusUid")
+                        .HasColumnType("char(36)");
 
                     b.Property<Guid>("BusinessTypeId")
                         .HasColumnType("char(36)");
@@ -53,18 +59,13 @@ namespace EcoMeal.Migrations
                         .HasColumnType("char(36)")
                         .HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe31d"));
 
-                    b.Property<Guid>("StatusId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe310"));
-
                     b.HasKey("Uid");
+
+                    b.HasIndex("BusinessStatusUid");
 
                     b.HasIndex("BusinessTypeId");
 
                     b.HasIndex("OwnerId");
-
-                    b.HasIndex("StatusId");
 
                     b.ToTable("Businesses");
                 });
@@ -423,6 +424,10 @@ namespace EcoMeal.Migrations
 
             modelBuilder.Entity("Business", b =>
                 {
+                    b.HasOne("BusinessStatus", null)
+                        .WithMany("Businesses")
+                        .HasForeignKey("BusinessStatusUid");
+
                     b.HasOne("BusinessType", "BusinessType")
                         .WithMany("Businesses")
                         .HasForeignKey("BusinessTypeId")
@@ -435,17 +440,9 @@ namespace EcoMeal.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BusinessStatus", "Status")
-                        .WithMany("Businesses")
-                        .HasForeignKey("StatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("BusinessType");
 
                     b.Navigation("Owner");
-
-                    b.Navigation("Status");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

@@ -1,9 +1,10 @@
-using System.ComponentModel.DataAnnotations.Schema;
 
 public class Business
 {
 	public Guid Uid { get; set; }
 	public Guid OwnerId { get; set; }
+	public Guid StatusId { get; set; }
+	public BusinessStatus? Status { get; set; }
 	public User? Owner { get; set; }
 	public string? Name { get; set; }
 	public string? Description { get; set; }

@@ -11,7 +11,6 @@
 
 <form method="post" action="/login">
     <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-
     <div class="form-group row mb-3 justify-content-center">
         <label class="col-md-3 col-form-label">Email <span class="text-danger">*</span></label>
         <div class="col-md-9">
@@ -42,7 +41,7 @@
                         <option value="">Select a type</option>
                         @if (roles is not null)
                         {
-                            @foreach (var t in roles)
+                            @foreach (var t in roles.Where(role => role.Name != "Admin"))
                             {
                                 <option value="@t.Name">@t.Name</option>
                             }

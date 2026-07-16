@@ -30,5 +30,6 @@ public class EcoMealDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid
 		modelBuilder.ApplyConfiguration(new OrderTypeConfiguration());
 		modelBuilder.ApplyConfiguration(new StatusTypeConfiguration());
 		modelBuilder.ApplyConfiguration(new OrderPackageTypeConfiguration());
+		modelBuilder.ApplyConfiguration(new BusinessStatusTypeConfiguration());
 	}
 }

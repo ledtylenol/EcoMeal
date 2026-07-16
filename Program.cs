@@ -31,9 +31,18 @@ internal class Program
 					dbContextOptions.UseMySql(connectionString, serverVersion);
 					dbContextOptions.LogTo(Console.WriteLine, LogLevel.Information)
 					.EnableDetailedErrors();
+					dbContextOptions.EnableSensitiveDataLogging();
 				});
 		services.AddControllers().AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
 		services.AddScoped(sp => new HttpClient { BaseAddress = new("http://localhost:5198") });
+		services.AddScoped<IRepository<BusinessStatus>, BusinessStatusRepository>();
+		services.AddScoped<IRepository<Business>, BusinessRepository>();
+		services.AddScoped<IRepository<User>, UserRepository>();
+		services.AddScoped<IRepository<BusinessType>, BusinessTypeRepository>();
+		services.AddScoped<IRepository<PackageType>, PackageTypeRepository>();
+		services.AddScoped<IRepository<Package>, PackageRepository>();
+		services.AddScoped<IRepository<OrderPackage>, OrderPackageRepository>();
+		services.AddScoped<IOrderRepository, OrderRepository>();
 		builder.Services.AddIdentityCore<User>(options =>
 		{
 			options.Password.RequireDigit = true;

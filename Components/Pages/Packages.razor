@@ -1,14 +1,19 @@
 @page "/businesses/{Uid:guid}"
-@inject HttpClient http
+@inject IRepository<Package> repository
+@inject IRepository<PackageType> typeRepository
+@inject IRepository<Business> businessRepository
+@inject IRepository<Order> orderRepository
 @inject IHttpContextAccessor context
 @inject UserManager<User> manager;
 @inject NavigationManager navManager;
+@inject HttpClient http;
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Authorization
+@using FuzzySharp;
 @attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Packages</PageTitle>
 
@@ -19,6 +24,33 @@
 else 
 {
 <h1>"Packages"</h1>
+}
+@if(packages is not null)
+{
+    @if (packages.Any())
+    {
+        <div class="row g-2 mb-3">
+            <div class="col-md-6">
+                <TextInput @bind-Value="searchTerm" @oninput="OnSearchChanged" Placeholder="Search name or description" />
+            </div>
+            <div class="col-md-6">
+                <select class="form-select" @bind="selectedPackageTypeId">
+                    <option value="">All package types</option>
+                    @if (packageTypes != null)
+                    {
+                        @foreach (var t in packageTypes)
+                        {
+                            <option value="@t.Uid">@t.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+    }  
+    else 
+    {
+    <span>Nothing to see here...</span>
+    }
 }
 
 @if(IsOwner)
@@ -65,7 +97,7 @@ else
 
 }
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
-        @foreach (var package in packages.Where(p => p.Quantity > 0))
+        @foreach (var package in GetFilteredPackages())
         {
             <div class="col">
                 <Card Class="h-100" @onclick="() => OpenBuyModal(package)">
@@ -87,11 +119,13 @@ else
                             Pickup: @package.PickupStart.ToString("MMM d, h:mm tt") - @package.PickupEnd.ToString("MMM d, h:mm tt")
                         </CardText>
                         @if(IsOwner) {
-						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
+						<div @onclick:stopPropagation="true" class="mt-auto row row-cols-2 vertical-align-end align-end">
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
-									@onclick="@(() => OpenEditModal(package))">Edit</Button>
+									@onclick="@(() => OpenEditModal(package))">
+                                    Edit</Button>
 							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
-									@onclick="@(() => OpenDeleteModal(package))">Delete</Button>
+									@onclick="@(() => OpenDeleteModal(package))">
+                                    Delete</Button>
 						</div>
                         }
                     </CardBody>
@@ -264,7 +298,7 @@ else
 
     private Package? currentPackage;
     private List<OrderPackage> currentOrderPackages = [];
-    private List<PackageTypeView>? packageTypes;
+    private List<PackageType>? packageTypes;
     private bool alreadyHadAdded = false;
     private uint purchaseQuantity = 0;
 
@@ -278,6 +312,42 @@ else
     private Guid? editUid;
     private bool isEdit => editUid is not null;
 
+    private string searchTerm = string.Empty;
+    private PackageType? selectedPackageType = null;
+    private Guid? selectedPackageTypeId= default;
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private List<Package> GetFilteredPackages()
+    {
+        if (packages is null) return new();
+
+        var query = packages.AsEnumerable();
+
+        if (selectedPackageTypeId is not null)
+        {
+            query = query.Where(b => b.PackageTypeId == selectedPackageTypeId);
+        }
+
+        query = query.Where(p => p.Quantity > 0);
+
+        var term = searchTerm.Trim();
+        if (string.IsNullOrEmpty(term)) return query.ToList();
+        var max = (Package p) => Math.Max(Fuzz.PartialRatio(searchTerm, p.Name), Fuzz.PartialRatio(searchTerm, p.Description));
+        var q = query.Select(b => new {Package=b, FuzzMax=max(b)});
+        var fuzzList= q.ToList();
+        fuzzList.Sort((l1, l2)=> l2.FuzzMax.CompareTo(l1.FuzzMax));
+        query = fuzzList.Where(f => f.FuzzMax > 30).Select(l => l.Package);
+            
+
+
+        var list = query.ToList();
+        return list;
+    }
+
     private async Task DeleteOrderPackage(OrderPackage? currentOrderPackage) 
     {
         currentOrderPackages.Remove(currentOrderPackage!);
@@ -287,14 +357,15 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadPackages();
-        packageTypes = await http.GetFromJsonAsync<List<PackageTypeView>>("api/package_type/");
-        business = await http.GetFromJsonAsync<Business?>($"api/business/{Uid}");
+        packageTypes = await typeRepository.GetAllAsync();
+        business = await businessRepository.GetByIdAsync(Uid);
         currentUser = await manager.GetUserAsync(context.HttpContext!.User);
         IsOwner = currentUser is not null && ((await manager.GetRolesAsync(currentUser)).Contains("Admin") || currentUser == business?.Owner!);
     }
 
     private async Task LoadPackages()
     {
+        //TODO new interface?
         packages = await http.GetFromJsonAsync<List<Package>>($"api/package/business/{Uid}");
     }
 
@@ -337,7 +408,14 @@ else
 
 	private async Task DeletePackage(Guid? editUid) 
     {
-		await http.DeleteAsync($"api/package/{editUid}");
+
+        if (editUid is null )
+        {
+            await deleteModal.HideAsync();
+            await LoadPackages();
+            return;
+        }
+		await repository.DeleteAsync((Guid)editUid);
 
         await deleteModal.HideAsync();
         await LoadPackages();
@@ -401,7 +479,7 @@ else
 
     private async Task HandleOnValidSubmit()
     {
-        var dto = new PackageDTO
+        var dto = new Package
         {
             BusinessId = Uid,
             PackageTypeId = package.PackageTypeId!.Value,
@@ -417,11 +495,11 @@ else
         if (editUid is not null)
         {
             dto.Uid = editUid.Value;
-            await http.PutAsJsonAsync("api/package/", dto);
+            await repository.UpdateAsync(dto, dto.Uid);
         }
         else
         {
-            await http.PostAsJsonAsync("api/package/", dto);
+            await repository.AddAsync(dto);
         }
 
         await modal.HideAsync();
@@ -438,8 +516,8 @@ else
 
     private async Task SubmitOrder() 
     {
-        currentOrder.OrderPackages = currentOrderPackages;
-        await http.PostAsJsonAsync("api/order", currentOrder );
+        currentOrder!.OrderPackages = currentOrderPackages;
+        await orderRepository.AddAsync(currentOrder);
         navManager.NavigateTo($"/businesses/{Uid}", true);
         await LoadPackages();
     }
@@ -492,11 +570,6 @@ else
         public string Name { get; set; } = string.Empty;
     }
 
-    public class PackageTypeView
-    {
-        public Guid Uid { get; set; }
-        public string Name { get; set; } = string.Empty;
-    }
 
     public class UploadResult
     {

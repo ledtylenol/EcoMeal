@@ -1,6 +1,9 @@
 ﻿@page "/businesses"
 @inject HttpClient http
 @inject IHttpContextAccessor accessor;
+@inject IRepository<Business> repository;
+@inject IRepository<BusinessType> typeRepository;
+@inject IRepository<BusinessStatus> statusRepository;
 @inject NavigationManager navigationManager
 @inject UserManager<User> manager;
 @rendermode InteractiveServer
@@ -8,11 +11,40 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@using FuzzySharp;
 
 @attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
 <PageTitle>Businesses</PageTitle>
 
 <h1>Businesses</h1>
+
+@if(businesses is not null && businesses.Any())
+{
+    @if (businesses.Any())
+    {
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <TextInput @bind-Value="searchTerm" @oninput="OnSearchChanged" Placeholder="Search name or description" />
+        </div>
+        <div class="col-md-6">
+            <select class="form-select" @bind="selectedBusinessTypeId">
+                <option value="">All business types</option>
+                @if (businessTypes != null)
+                {
+                    @foreach (var t in businessTypes)
+                    {
+                        <option value="@t.Uid">@t.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+    }
+    else
+    {
+        <span>Nothing to see here...</span>
+    }
+}
 
 @if (businesses == null)
 {
@@ -21,46 +53,75 @@
 else
 {
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
-        @foreach (var business in businesses)
+        @foreach (var business in GetFilteredBusinesses())
         {
-            <div class="col">
-                <Card Class="h-100" TextAlignment="Alignment.Center" @onclick="@(() => MoveToPackages(@business.Uid))">
-                    <CardBody Class="d-flex flex-column h-100">
-                        <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
-    					@if (business.ImageUrl != null && business.ImageUrl.Length > 0)
-						{
-						<Image Src="@business.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
-						}
-						else
-						{
-						<div Style="height: 100%; width: 100%; background-color: gray;" />
-						}
-						</div>
-                        <CardTitle>@business.Name</CardTitle>
-						@if(@business.Description is null || @business.Description.Length == 0) {
-							<CardText>No description added...</CardText>
-						}
-						else{
-                        	<CardText>@business.Description</CardText>
-						}
-                        <AuthorizeView Roles="BusinessOwner,Admin">
+        <div class="col">
+            <Card Class="h-100" TextAlignment="Alignment.Center" @onclick="@(() => MoveToPackages(@business.Uid))">
+                <CardBody Class="d-flex flex-column h-100">
+                    <div style="height: 100px; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+                    @if (business.ImageUrl != null && business.ImageUrl.Length > 0)
+                    {
+                    <Image Src="@business.ImageUrl" IsThumbnail="true" Style="height: 100%; width: 100%; object-fit: cover;" />
+                    }
+                    else
+                    {
+                    <div Style="height: 100%; width: 100%; background-color: gray;" />
+                    }
+                    </div>
+                    <CardTitle>@business.Name</CardTitle>
+                    @if(@business.Description is null || @business.Description.Length == 0) {
+                        <CardText>No description added...</CardText>
+                    }
+                    else{
+                        <CardText>@business.Description</CardText>
+                    }
+                    @if(IsBusinessInvisibleToUsers(business))
+                    {
+                        <CardText>
+                            Awaiting Approval
+                        </CardText>
+                    }
+                    <div @onclick:stopPropagation="true" class="mt-auto row row-cols-2 vertical-align-end align-end">
+                        @if(IsOwner(business))
+                        {
+                        <Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
+                                @onclick="@(() => OpenEditModal(business))">
+                                Edit</Button>
+                        <Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
+                                @onclick="@(() => OpenDeleteModal(business))">
+                                Delete</Button>
+                        }
+                    @if(business.Status != approvedStatus)
+                    {
+                        <AuthorizeView Roles="Admin">
                         <Authorized>
-						<div class="mt-auto row row-cols-2 vertical-align-end align-end">
-							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
-									@onclick="@(() => OpenEditModal(business))">Edit</Button>
-							<Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Danger"
-									@onclick="@(() => OpenDeleteModal(business))">Delete</Button>
-						</div>
+                            <Button Class="vertical-align-end col mt-auto align-self-end" Color="ButtonColor.Primary"
+                                    @onclick="@(() => OpenApproveModal(business))">
+                                    Approve</Button>
                         </Authorized>
                         </AuthorizeView>
-                    </CardBody>
-                </Card>
-            </div>
+                    }
+                    </div>
+                </CardBody>
+            </Card>
+        </div>
         }
     </div>
 }
 
-<Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenAddModal">Add Business</Button>
+<AuthorizeView Roles="BusinessOwner,Admin">
+    <Authorized>
+        <Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenAddModal">Add Business</Button>
+    </Authorized>
+</AuthorizeView>
+<Modal @ref="approveModal" Title="Approve" IsVerticallyCentered = "true">
+	<BodyTemplate>
+		<h1>Are you sure?</h1>
+        <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseApproveModal">Cancel</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => ApproveBusiness(currentBusiness))">Delete</Button>
+	</BodyTemplate>
+
+</Modal>
 
 <Modal @ref="deleteModal" Title="Delete" IsVerticallyCentered = "true">
 	<BodyTemplate>
@@ -139,32 +200,95 @@ else
 </Modal>
 
 @code {
-	private List<BusinessTypeView>? businessTypes;
+    private static readonly Guid pendingGuid = new("08dee248-76ba-4892-84e2-33ba384fe310");
+    private static readonly Guid approvedGuid = new("08dee248-76ba-4892-84e2-33ba384fe318");
+    private BusinessStatus? pendingStatus;
+    private BusinessStatus? approvedStatus;
+	private List<BusinessType>? businessTypes;
     private List<Business>? businesses;
     private User? currentUser;
+    private bool isAdmin = false;
+    private bool isOwner = false;
     private Modal modal = default!;
     private Modal deleteModal = default!;
+    private Modal approveModal = default!;
     private BusinessView business = new();
+    private Business? currentBusiness = null;
     private EditContext? editContext;
     private Guid? editUid;
     private bool isEdit => editUid is not null;
 
+
+    private string searchTerm = string.Empty;
+    private BusinessType? selectedBusinessType = null;
+    private Guid? selectedBusinessTypeId= default;
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private List<Business> GetFilteredBusinesses()
+    {
+        if (businesses is null) return new();
+
+        var query = businesses.AsEnumerable();
+
+        if (selectedBusinessTypeId is not null)
+        {
+            query = query.Where(b => b.BusinessTypeId == selectedBusinessTypeId);
+        }
+        query = query.Where(b => IsBusinessVisible(b));
+
+        var term = searchTerm.Trim();
+        if (string.IsNullOrEmpty(term)) return query.ToList();
+        var max = (Business b) => Math.Max(Fuzz.PartialRatio(searchTerm, b.Name), Fuzz.PartialRatio(searchTerm, b.Description));
+        var q = query.Select(b => new {Business=b, FuzzMax=max(b)});
+        var fuzzList= q.ToList();
+        fuzzList.Sort((l1, l2)=> l2.FuzzMax.CompareTo(l1.FuzzMax));
+        query = fuzzList.Where(f => f.FuzzMax > 30).Select(l => l.Business);
+            
+
+
+        var list = query.ToList();
+        return list;
+    }
     protected override async Task OnInitializedAsync()
     {
         await LoadBusinesses();
-		businessTypes = await http.GetFromJsonAsync<List<BusinessTypeView>>("api/business_type/");
+		businessTypes = await typeRepository.GetAllAsync();
         currentUser = await manager.GetUserAsync(accessor.HttpContext!.User);
+        pendingStatus = await statusRepository.GetByIdAsync(pendingGuid);
+        approvedStatus = await statusRepository.GetByIdAsync(approvedGuid);
+
+        if (currentUser is not null)
+            isAdmin = await manager.IsInRoleAsync(currentUser, "Admin");
+
     }
 
 	private async Task DeleteBusiness(Guid? editUid) {
-		await http.DeleteAsync($"api/business/{editUid}");
+        if (editUid is null) 
+        {
+            await deleteModal.HideAsync();
+            await LoadBusinesses();
+            return;
+        }
+		await repository.DeleteAsync((Guid)editUid);
 
         await deleteModal.HideAsync();
         await LoadBusinesses();
 	}
+
+	private async Task ApproveBusiness(Business? business) {
+		currentBusiness?.Status = approvedStatus;
+        await repository.UpdateAsync(business!, business!.Uid);
+
+        await approveModal.HideAsync();
+        await LoadBusinesses();
+	}
     private async Task LoadBusinesses()
     {
-        businesses = await http.GetFromJsonAsync<List<Business>>("api/business/");
+        businesses = await repository.GetAllAsync();
     }
 
     private async Task OpenAddModal()
@@ -183,7 +307,23 @@ else
         editUid = b.Uid;
         await deleteModal.ShowAsync();
     }
+    private async Task OpenApproveModal(Business b)
+    {
+        currentBusiness = b;
+        await approveModal.ShowAsync();
+    }
 
+    private bool IsBusinessVisible(Business b) {
+        if (b.Status is null) return false;
+        //TODO: replace name with object? guid?
+        return isAdmin || b.Status.Name != "Pending" || b.Owner == currentUser;
+    }
+
+    private bool IsBusinessInvisibleToUsers(Business b) {
+        if (b.Status is null) return false;
+        //TODO: replace name with object? guid?
+        return b.Status.Name == "Pending" && b.Owner == currentUser;
+    }
     private async Task OpenEditModal(Business b)
     {
         editUid = b.Uid;
@@ -206,6 +346,14 @@ else
 	private async Task CloseDeleteModal() {
 		await deleteModal.HideAsync();
 	}
+	private async Task CloseApproveModal() {
+        currentBusiness = null;
+		await deleteModal.HideAsync();
+	}
+    private bool IsOwner(Business b)
+    {
+        return currentUser is not null && (isAdmin || currentUser == b.Owner!);
+    }
 
     private async Task HandleOnValidSubmit()
     {
@@ -213,25 +361,24 @@ else
         if (currentUser is null) {
             return;
         }
-        var dto = new BusinessDTO
+        var dto = new Business
         {
             Name = business.Name,
             Address = business.Address,
             Description = business.Description,
             ImageUrl = business.ImageUrl,
             BusinessTypeId = (Guid)business.BusinessTypeId!,
-            OwnerId = currentUser.Id
-            
+            OwnerId = currentUser.Id,
         };
 
         if (editUid is not null)
         {
             dto.Uid = editUid.Value;
-            await http.PutAsJsonAsync("api/business/", dto);
+            await repository.UpdateAsync(dto, dto.Uid);
         }
         else
         {
-            await http.PostAsJsonAsync("api/business/", dto);
+            await repository.AddAsync(dto);
         }
 
         await modal.HideAsync();

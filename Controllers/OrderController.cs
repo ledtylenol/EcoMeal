@@ -33,7 +33,7 @@ public class OrderController(EcoMealDbContext context) : ControllerBase
 			var (package, quantity) = (packageInfo.Package, packageInfo.Quantity);
 			if (package is null) return NoContent();
 			package.Quantity -= quantity;
-			await packageRepository.UpdateAsync(package);
+			await packageRepository.UpdateAsync(package, package.Uid);
 
 
 		}
@@ -55,7 +55,7 @@ public class OrderController(EcoMealDbContext context) : ControllerBase
 		_order.UserId = (Guid)order.UserId!;
 		_order.OrderNumber = order.OrderNumber;
 
-		await repository.UpdateAsync(_order);
+		await repository.UpdateAsync(_order, (Guid)_order.Uid!);
 
 		return CreatedAtAction(
 				nameof(GetOrders),

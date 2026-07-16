@@ -21,9 +21,13 @@ namespace EcoMeal.Data
 			return entity;
 		}
 
-		public async Task<TEntity> UpdateAsync(TEntity entity)
+		public async Task<TEntity?> UpdateAsync(TEntity entity, Guid uid)
 		{
-			context.Set<TEntity>().Update(entity);
+
+			var existing = await context.Set<TEntity>().FindAsync(uid);
+			if (existing is null) return null;
+
+			context.Entry(existing).CurrentValues.SetValues(entity);
 			await context.SaveChangesAsync();
 			return entity;
 		}
@@ -32,6 +36,16 @@ namespace EcoMeal.Data
 		{
 			context.Set<TEntity>().Remove(entity);
 			await context.SaveChangesAsync();
+		}
+
+		public async Task DeleteAsync(Guid id)
+		{
+			var entity = await context.Set<TEntity>().FindAsync(id);
+			if (entity is not null)
+			{
+				context.Set<TEntity>().Remove(entity);
+				await context.SaveChangesAsync();
+			}
 		}
 	}
 }

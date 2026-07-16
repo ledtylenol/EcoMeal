@@ -15,6 +15,13 @@ public class BusinessTypeConfiguration : IEntityTypeConfiguration<Business>
 		builder.Property(p => p.Address).HasMaxLength(100);
 		builder.Property(p => p.ImageUrl).HasMaxLength(100);
 		builder.HasOne(p => p.Owner).WithMany(u => u.Businesses).HasForeignKey(p => p.OwnerId);
+		builder.HasOne(p => p.Status).WithMany(u => u.Businesses).HasForeignKey(p => p.StatusId);
+		builder.Property(p => p.OwnerId).HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe31d"));
+		builder.Property(p => p.StatusId).HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe310"));
+
+		builder.Navigation(p => p.Status).AutoInclude();
+		builder.Navigation(p => p.Owner).AutoInclude();
+		builder.Navigation(p => p.BusinessType).AutoInclude();
 	}
 }
 public class BusinessTypeTypeConfiguration : IEntityTypeConfiguration<BusinessType>
@@ -26,6 +33,7 @@ public class BusinessTypeTypeConfiguration : IEntityTypeConfiguration<BusinessTy
 		builder.Property(p => p.Name).IsRequired().HasMaxLength(50);
 
 		builder.HasMany(p => p.Businesses).WithOne(p => p.BusinessType).HasForeignKey(p => p.BusinessTypeId);
+
 	}
 }
 public class OrderTypeConfiguration : IEntityTypeConfiguration<Order>
@@ -38,7 +46,10 @@ public class OrderTypeConfiguration : IEntityTypeConfiguration<Order>
 		builder.HasOne(p => p.Business).WithMany(b => b.Orders).HasForeignKey(p => p.BusinessId).IsRequired();
 		builder.HasOne(p => p.Status).WithMany(s => s.Orders).HasForeignKey(p => p.StatusId).IsRequired();
 
+		builder.Navigation(p => p.Status).AutoInclude();
+
 		builder.HasMany(p => p.OrderPackages).WithOne(op => op.Order).HasForeignKey(p => p.OrderId);
+
 	}
 }
 public class OrderPackageTypeConfiguration : IEntityTypeConfiguration<OrderPackage>
@@ -49,6 +60,8 @@ public class OrderPackageTypeConfiguration : IEntityTypeConfiguration<OrderPacka
 
 		builder.HasOne(p => p.Order).WithMany(o => o.OrderPackages).HasForeignKey(p => p.OrderId).IsRequired();
 		builder.HasOne(p => p.Package).WithMany(o => o.OrderPackages).HasForeignKey(p => p.PackageId).IsRequired();
+
+		builder.Navigation(p => p.Order).AutoInclude();
 
 		builder.Property(p => p.Quantity).IsRequired();
 	}
@@ -68,6 +81,8 @@ public class PackageTypeConfiguration : IEntityTypeConfiguration<Package>
 		builder.Property(p => p.PickupStart).IsRequired();
 		builder.Property(p => p.Quantity).IsRequired();
 		builder.Property(p => p.Price).IsRequired();
+
+		builder.Navigation(p => p.Business).AutoInclude();
 
 		builder.HasOne(p => p.PackageType).WithMany(t => t.Packages).HasForeignKey(p => p.PackageTypeId).IsRequired();
 
@@ -93,6 +108,20 @@ public class StatusTypeConfiguration : IEntityTypeConfiguration<Status>
 		builder.Property(p => p.Name).IsRequired().HasMaxLength(50);
 
 		builder.HasMany(p => p.Orders).WithOne(p => p.Status).HasForeignKey(p => p.StatusId);
+
+	}
+}
+
+public class BusinessStatusTypeConfiguration : IEntityTypeConfiguration<BusinessStatus>
+{
+	public void Configure(EntityTypeBuilder<BusinessStatus> builder)
+	{
+		builder.HasKey(p => p.Uid);
+
+		builder.Property(p => p.Name).IsRequired().HasMaxLength(50);
+
+
+		builder.HasMany(p => p.Businesses).WithOne(p => p.Status).HasForeignKey(p => p.StatusId);
 	}
 }
 
