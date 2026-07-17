@@ -14,7 +14,7 @@ public class BusinessTypeConfiguration : IEntityTypeConfiguration<Business>
 		builder.Property(p => p.Description).HasMaxLength(500);
 		builder.Property(p => p.Address).HasMaxLength(100);
 		builder.Property(p => p.ImageUrl).HasMaxLength(100);
-		builder.HasOne(p => p.Owner).WithMany(u => u.Businesses).HasForeignKey(p => p.OwnerId);
+		builder.HasOne(p => p.Owner).WithMany(u => u.Businesses).HasForeignKey(p => p.OwnerId).OnDelete(DeleteBehavior.Cascade);
 		builder.HasOne(p => p.Status).WithMany(u => u.Businesses).HasForeignKey(p => p.StatusId);
 		builder.Property(p => p.OwnerId).HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe31d"));
 		builder.Property(p => p.StatusId).HasDefaultValue(new Guid("08dee248-76ba-4892-84e2-33ba384fe310"));
@@ -42,14 +42,16 @@ public class OrderTypeConfiguration : IEntityTypeConfiguration<Order>
 	{
 		builder.HasKey(p => p.Uid);
 
-		builder.HasOne(p => p.User).WithMany(u => u.Orders).HasForeignKey(p => p.UserId).IsRequired();
-		builder.HasOne(p => p.Business).WithMany(b => b.Orders).HasForeignKey(p => p.BusinessId).IsRequired();
+		builder.HasOne(p => p.User).WithMany(u => u.Orders).HasForeignKey(p => p.UserId).IsRequired().OnDelete(DeleteBehavior.Cascade);
+		builder.HasOne(p => p.Business).WithMany(b => b.Orders).HasForeignKey(p => p.BusinessId).IsRequired().OnDelete(DeleteBehavior.Cascade);
 		builder.HasOne(p => p.Status).WithMany(s => s.Orders).HasForeignKey(p => p.StatusId).IsRequired();
+		builder.Property(p => p.OrderDate).IsRequired();
 
 		builder.Navigation(p => p.Status).AutoInclude();
 
 		builder.HasMany(p => p.OrderPackages).WithOne(op => op.Order).HasForeignKey(p => p.OrderId);
-
+		builder.Navigation(p => p.Business).AutoInclude();
+		builder.Navigation(p => p.OrderPackages).AutoInclude();
 	}
 }
 public class OrderPackageTypeConfiguration : IEntityTypeConfiguration<OrderPackage>
@@ -58,10 +60,9 @@ public class OrderPackageTypeConfiguration : IEntityTypeConfiguration<OrderPacka
 	{
 		builder.HasKey(p => new { p.OrderId, p.PackageId });
 
-		builder.HasOne(p => p.Order).WithMany(o => o.OrderPackages).HasForeignKey(p => p.OrderId).IsRequired();
-		builder.HasOne(p => p.Package).WithMany(o => o.OrderPackages).HasForeignKey(p => p.PackageId).IsRequired();
+		builder.HasOne(p => p.Order).WithMany(o => o.OrderPackages).HasForeignKey(p => p.OrderId).IsRequired().OnDelete(DeleteBehavior.Cascade);
+		builder.HasOne(p => p.Package).WithMany(o => o.OrderPackages).HasForeignKey(p => p.PackageId).IsRequired().OnDelete(DeleteBehavior.Cascade);
 
-		builder.Navigation(p => p.Order).AutoInclude();
 
 		builder.Property(p => p.Quantity).IsRequired();
 	}
@@ -72,7 +73,7 @@ public class PackageTypeConfiguration : IEntityTypeConfiguration<Package>
 	{
 		builder.HasKey(p => p.Uid);
 		builder.HasOne(p => p.Business).WithMany(p => p.Packages)
-			.HasForeignKey(p => p.BusinessId).IsRequired();
+			.HasForeignKey(p => p.BusinessId).IsRequired().OnDelete(DeleteBehavior.Cascade);
 
 		builder.Property(p => p.Name).IsRequired().HasMaxLength(100);
 		builder.Property(p => p.Description).HasMaxLength(100);

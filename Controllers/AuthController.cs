@@ -48,19 +48,6 @@ public class AuthController(
 		return Ok(new { user.Id });
 	}
 
-	[HttpPost("login")]
-	public async Task<IActionResult> Login(LoginDTO dto)
-	{
-		var user = await _userManager.FindByEmailAsync(dto.Email);
-		if (user is null)
-			return Unauthorized("Invalid email or password.");
-
-		var result = await _signInManager.PasswordSignInAsync(user, dto.Password, isPersistent: true, lockoutOnFailure: false);
-		if (!result.Succeeded)
-			return Unauthorized("Invalid email or password.");
-
-		return Ok();
-	}
 	[HttpPost("{id}/role")]
 	public async Task<IActionResult> SetRole(Guid id, [FromBody] string roleName)
 	{

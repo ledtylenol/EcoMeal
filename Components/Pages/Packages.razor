@@ -2,7 +2,7 @@
 @inject IRepository<Package> repository
 @inject IRepository<PackageType> typeRepository
 @inject IRepository<Business> businessRepository
-@inject IRepository<Order> orderRepository
+@inject IOrderRepository orderRepository
 @inject IHttpContextAccessor context
 @inject UserManager<User> manager;
 @inject NavigationManager navManager;
@@ -334,13 +334,11 @@ else
 
         query = query.Where(p => p.Quantity > 0);
 
-        var term = searchTerm.Trim();
+        var term = searchTerm.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(term)) return query.ToList();
-        var max = (Package p) => Math.Max(Fuzz.PartialRatio(searchTerm, p.Name), Fuzz.PartialRatio(searchTerm, p.Description));
+        var max = (Package p) => Math.Max(Fuzz.Ratio(searchTerm, p.Name.ToLowerInvariant()), Fuzz.Ratio(searchTerm, (p.Description ?? string.Empty).ToLowerInvariant()));
         var q = query.Select(b => new {Package=b, FuzzMax=max(b)});
-        var fuzzList= q.ToList();
-        fuzzList.Sort((l1, l2)=> l2.FuzzMax.CompareTo(l1.FuzzMax));
-        query = fuzzList.Where(f => f.FuzzMax > 30).Select(l => l.Package);
+        query = q.Where(p=>p.FuzzMax > 0).OrderByDescending(p => p.FuzzMax).Select(l => l.Package);
             
 
 
@@ -383,16 +381,8 @@ else
     }
     private async Task OpenBuyModal(Package package)
     {
-        
-        if (currentOrder is null)
-        {
-            currentOrder = new();
-            currentOrder.StatusId = CreatedUid;
-            currentOrder.User = currentUser;
-            currentOrder.Business = business;
-        }
-        //TODO: dict instead of list
 
+        //TODO dict here instead of list
         currentOrderPackage = currentOrderPackages.Find(op => op.PackageId == package.Uid);
         alreadyHadAdded = currentOrderPackage is not null;
         if (!alreadyHadAdded)
@@ -400,7 +390,7 @@ else
             currentOrderPackage = new();
         }
         currentOrderPackage!.PackageId = package.Uid;
-        currentOrderPackage.Package = package;
+        currentOrderPackage.Package = package; // kept for display in the accordion only
         currentPackage = package;
         orderPackageEditContext = new(currentOrderPackage);
         await buyModal.ShowAsync();
@@ -514,12 +504,22 @@ else
         await LoadPackages();
     }
 
-    private async Task SubmitOrder() 
+     private async Task SubmitOrder()
     {
-        currentOrder!.OrderPackages = currentOrderPackages;
-        await orderRepository.AddAsync(currentOrder);
+        var order = new Order
+        {
+            UserId = currentUser!.Id,
+            BusinessId = Uid,
+            StatusId = CreatedUid,
+            OrderPackages = currentOrderPackages.Select(op => new OrderPackage
+            {
+                PackageId = op.PackageId,
+                Quantity = op.Quantity
+            }).ToList()
+        };
+
+        await orderRepository.AddAsync(order);
         navManager.NavigateTo($"/businesses/{Uid}", true);
-        await LoadPackages();
     }
     public class PackageView
     {

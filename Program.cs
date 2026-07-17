@@ -102,13 +102,14 @@ internal class Program
 		{
 			var user = await userManager.FindByEmailAsync(email);
 			if (user is null)
-				return Results.Redirect("/login?error=1");
+				return Results.Redirect($"/login?error=1{(string.IsNullOrWhiteSpace(returnUrl) ? "" : $"&returnUrl={Uri.EscapeDataString(returnUrl)}")}");
 
 			var result = await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
 			if (!result.Succeeded)
-				return Results.Redirect("/login?error=1");
+				return Results.Redirect($"/login?error=1{(string.IsNullOrWhiteSpace(returnUrl) ? "" : $"&returnUrl={Uri.EscapeDataString(returnUrl)}")}");
 
-			return Results.Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+			var redirectTo = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
+			return Results.Redirect(redirectTo);
 		}).DisableAntiforgery();
 
 		app.MapRazorPages();

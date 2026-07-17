@@ -42,16 +42,30 @@
 
 			</Authorized>
 		</AuthorizeView>
+		<AuthorizeView Roles="Admin,Customer">
+			<Authorized>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="orders" Match="NavLinkMatch.All">
+						<span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Orders
+					</NavLink>
+				</div>
+			</Authorized>
+		</AuthorizeView>
 		<AuthorizeView Roles="Admin">
 			<Authorized>
 				<div class="nav-item px-3">
-					<NavLink class="nav-link" href="business_types">
+					<NavLink class="nav-link" href="admin/business_types">
 						<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Business Types
 					</NavLink>
 				</div>
 				<div class="nav-item px-3">
-					<NavLink class="nav-link" href="package_types">
+					<NavLink class="nav-link" href="admin/package_types">
 						<span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Package Types
+					</NavLink>
+				</div>
+				<div class="nav-item px-3">
+					<NavLink class="nav-link" href="admin/users">
+						<Icon Class = "bi" Size="IconSize.x4" Name="IconName.FilePersonFill" /> Users
 					</NavLink>
 				</div>
 			</Authorized>

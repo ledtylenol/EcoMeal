@@ -1,4 +1,4 @@
-@page "/business_types"
+@page "/admin/business_types"
 @inject HttpClient http
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
@@ -34,7 +34,6 @@ else
         }
     </div>
 }
-
 <Button Color="ButtonColor.Primary" Class="mb-3 padding: 5px 5px 5px 5px" @onclick="OpenAddModal">Add Business Type</Button>
 
 <Modal @ref="deleteModal" Title="Delete" IsVerticallyCentered = "true">

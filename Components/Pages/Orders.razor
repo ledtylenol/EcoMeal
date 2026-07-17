@@ -1,0 +1,119 @@
+@page "/orders"
+@inject IOrderRepository orderRepository
+@inject IHttpContextAccessor context
+@inject UserManager<User> manager
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+
+@attribute [Authorize(Roles = "Customer,Admin,BusinessOwner")]
+<PageTitle>Orders</PageTitle>
+
+<h1>Orders</h1>
+
+@if (orders == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!orders.Any())
+{
+    <p class="text-muted">Nothing to see here...</p>
+}
+else
+{
+    @foreach (var order in orders.OrderByDescending(o => o.OrderDate))
+    {
+        <Card Class="mb-3">
+            <CardBody>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <CardTitle>@order.Business?.Name</CardTitle>
+                        <span class="badge bg-secondary">@order.Status?.Name</span>
+                    </div>
+                    @if (CanCancel(order))
+                    {
+                        <Button Color="ButtonColor.Danger" @onclick="@(() => OpenCancelModal(order))">Cancel Order</Button>
+                    }
+                </div>
+
+                <ul class="list-unstyled mb-0">
+                    @foreach (var op in order.OrderPackages)
+                    {
+                        <li>@op.Package?.Name <Icon Name="IconName.Basket3Fill"/> Quantity: @op.Quantity</li>
+                    }
+                </ul>
+            </CardBody>
+            <CardFooter>
+                Order Placed at: @order.OrderDate.ToString("MMM d, h:mm tt")
+            </CardFooter>
+        </Card>
+    }
+}
+
+<Modal @ref="cancelModal" Title="Cancel Order" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <p>Are you sure you want to cancel this order? This cannot be undone.</p>
+        <div class="d-flex justify-content-end gap-2">
+            <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseCancelModal">Keep Order</Button>
+            <Button Type="ButtonType.Button" Color="ButtonColor.Danger" @onclick="ConfirmCancel">Cancel Order</Button>
+        </div>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private static readonly Guid CancelledGuid = new("0223b286-0132-4783-a5bd-43224d996e50");
+
+    private List<Order>? orders;
+    private User? currentUser;
+    private bool isAdmin;
+
+    private Modal cancelModal = default!;
+    private Order? orderToCancel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await manager.GetUserAsync(context.HttpContext!.User);
+        if (currentUser is not null)
+            isAdmin = await manager.IsInRoleAsync(currentUser, "Admin");
+
+        await LoadOrders();
+    }
+
+    private async Task LoadOrders()
+    {
+        var all = await orderRepository.GetAllAsync();
+        orders = isAdmin
+            ? all
+            : all.Where(o => o.UserId == currentUser!.Id).ToList();
+    }
+
+    private bool CanCancel(Order order)
+    {
+        if (order.StatusId == CancelledGuid) return false;
+        return isAdmin || order.UserId == currentUser?.Id;
+    }
+
+    private async Task OpenCancelModal(Order order)
+    {
+        orderToCancel = order;
+        await cancelModal.ShowAsync();
+    }
+
+    private async Task CloseCancelModal()
+    {
+        orderToCancel = null;
+        await cancelModal.HideAsync();
+    }
+
+    private async Task ConfirmCancel()
+    {
+        if (orderToCancel is not null)
+        {
+            await orderRepository.CancelOrder(orderToCancel);
+        }
+
+        await cancelModal.HideAsync();
+        orderToCancel = null;
+        await LoadOrders();
+    }
+}

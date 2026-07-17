@@ -1,0 +1,192 @@
+@page "/admin/users"
+@inject UserManager<User> userManager
+@inject RoleManager<IdentityRole<Guid>> roleManager
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+
+@attribute [Authorize(Roles = "Admin")]
+<PageTitle>Manage Users</PageTitle>
+
+<h1>Manage Users</h1>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Roles</th>
+                <th>Locked Out</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @* TODO: pagination *@
+            @foreach (var u in users)
+            {
+                <tr>
+                    <td>@u.Email</td>
+                    <td>@u.UserName</td>
+                    <td>@string.Join(", ", userRoles.GetValueOrDefault(u.Id, new List<string>()))</td>
+                    <td>@(u.LockoutEnd is not null && u.LockoutEnd > DateTimeOffset.UtcNow ? "Yes" : "No")</td>
+                    <td class="d-flex gap-2">
+                        <Button Color="ButtonColor.Primary" @onclick="@(() => OpenRoleModal(u))">Change Role</Button>
+                        @if (u.LockoutEnd is not null && u.LockoutEnd > DateTimeOffset.UtcNow)
+                        {
+                            <Button Color="ButtonColor.Success" @onclick="@(() => Unlock(u))">Unlock</Button>
+                        }
+                        else
+                        {
+                            <Button Color="ButtonColor.Warning" @onclick="@(() => Lock(u))">Lock</Button>
+                        }
+                        <Button Color="ButtonColor.Danger" @onclick="@(() => OpenDeleteModal(u))">Delete</Button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<Modal @ref="roleModal" Title="Change Role" IsVerticallyCentered="true">
+    <BodyTemplate>
+        @if (userForRoleChange is not null)
+        {
+            <p>Change role for <strong>@userForRoleChange.Email</strong></p>
+            <select class="form-select" @bind="selectedRoleName">
+                <option value="">Select a role</option>
+                @foreach (var role in allRoles)
+                {
+                    <option value="@role.Name">@role.Name</option>
+                }
+            </select>
+        }
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseRoleModal">Cancel</Button>
+            <Button Type="ButtonType.Button" Color="ButtonColor.Success" @onclick="ConfirmRoleChange">Save</Button>
+        </div>
+    </BodyTemplate>
+</Modal>
+
+<Modal @ref="deleteModal" Title="Delete User" IsVerticallyCentered="true">
+    <BodyTemplate>
+        @if (deleteUser is not null)
+        {
+            <p><strong>Are you sure about this?</strong></p>
+            <p class="text-danger">No undos, all associated data will be lost  (businesses, orders, packages)</p>
+        }
+        <div class="d-flex justify-content-end gap-2">
+            <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseDeleteModal">Cancel</Button>
+            <Button Type="ButtonType.Button" Color="ButtonColor.Danger" @onclick="ConfirmDelete">Delete</Button>
+        </div>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<User>? users;
+    private Dictionary<Guid, List<string>> userRoles = new();
+    private List<IdentityRole<Guid>> allRoles = [];
+
+    private Modal roleModal = default!;
+    private Modal deleteModal = default!;
+
+    private User? userForRoleChange;
+    private string selectedRoleName = string.Empty;
+
+    private User? deleteUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        allRoles = await roleManager.Roles.ToListAsync();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await userManager.Users.ToListAsync();
+        userRoles.Clear();
+        foreach (var u in users)
+        {
+            var roles = await userManager.GetRolesAsync(u);
+            userRoles[u.Id] = roles.ToList();
+        }
+    }
+
+    private async Task OpenRoleModal(User u)
+    {
+        userForRoleChange = u;
+        selectedRoleName = userRoles.GetValueOrDefault(u.Id, new List<string>()).FirstOrDefault() ?? string.Empty;
+        await roleModal.ShowAsync();
+    }
+
+    private async Task CloseRoleModal()
+    {
+        userForRoleChange = null;
+        await roleModal.HideAsync();
+    }
+
+    private async Task ConfirmRoleChange()
+    {
+        if (userForRoleChange is null || string.IsNullOrWhiteSpace(selectedRoleName))
+        {
+            await roleModal.HideAsync();
+            return;
+        }
+
+        var currentRoles = await userManager.GetRolesAsync(userForRoleChange);
+        if (currentRoles.Any())
+            await userManager.RemoveFromRolesAsync(userForRoleChange, currentRoles);
+
+        await userManager.AddToRoleAsync(userForRoleChange, selectedRoleName);
+
+        await roleModal.HideAsync();
+        userForRoleChange = null;
+        await LoadUsers();
+    }
+
+    private async Task Lock(User u)
+    {
+        await userManager.SetLockoutEndDateAsync(u, DateTimeOffset.MaxValue);
+        await LoadUsers();
+    }
+
+    private async Task Unlock(User u)
+    {
+        await userManager.SetLockoutEndDateAsync(u, null);
+        await LoadUsers();
+    }
+
+    private async Task OpenDeleteModal(User u)
+    {
+        deleteUser = u;
+        await deleteModal.ShowAsync();
+    }
+
+    private async Task CloseDeleteModal()
+    {
+        deleteUser = null;
+        await deleteModal.HideAsync();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteUser is null)
+        {
+            await deleteModal.HideAsync();
+            return;
+        }
+
+        await userManager.DeleteAsync(deleteUser);
+
+        await deleteModal.HideAsync();
+        deleteUser = null;
+        await LoadUsers();
+    }
+
+}

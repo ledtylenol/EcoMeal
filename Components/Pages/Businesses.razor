@@ -118,7 +118,7 @@ else
 	<BodyTemplate>
 		<h1>Are you sure?</h1>
         <Button Type="ButtonType.Button" Color="ButtonColor.Secondary" @onclick="CloseApproveModal">Cancel</Button>
-		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => ApproveBusiness(currentBusiness))">Delete</Button>
+		<Button Type="ButtonType.Button" Color="ButtonColor.Primary" @onclick="@(() => ApproveBusiness(currentBusiness))">Approve</Button>
 	</BodyTemplate>
 
 </Modal>
@@ -240,15 +240,11 @@ else
         }
         query = query.Where(b => IsBusinessVisible(b));
 
-        var term = searchTerm.Trim();
+        var term = searchTerm.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(term)) return query.ToList();
-        var max = (Business b) => Math.Max(Fuzz.PartialRatio(searchTerm, b.Name), Fuzz.PartialRatio(searchTerm, b.Description));
-        var q = query.Select(b => new {Business=b, FuzzMax=max(b)});
-        var fuzzList= q.ToList();
-        fuzzList.Sort((l1, l2)=> l2.FuzzMax.CompareTo(l1.FuzzMax));
-        query = fuzzList.Where(f => f.FuzzMax > 30).Select(l => l.Business);
-            
-
+        var max = (Business p) => Math.Max(Fuzz.Ratio(searchTerm, p.Name!.ToLowerInvariant()), Fuzz.Ratio(searchTerm, (p.Description ?? string.Empty).ToLowerInvariant()));
+        var q = query.Select(b => new {Package=b, FuzzMax=max(b)});
+        query = q.Where(p => p.FuzzMax > 0).OrderByDescending(p => p.FuzzMax).Select(l => l.Package);
 
         var list = query.ToList();
         return list;
